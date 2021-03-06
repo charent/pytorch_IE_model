@@ -1,0 +1,10 @@
+.vscode
+/model_file
+__pycache__
+*/__pycache__
+log
+/data/*
+!/data/all_50_schemas
+!/data/dev_data_sample.json
+!/data/dev_data_sample.json
+!/data/train_data_sample.json
