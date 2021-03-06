@@ -31,7 +31,7 @@ class SelfAttention(nn.Module):
 
         self.out_fc = nn.Sequential(
             nn.Linear(in_features=embedding_dim, out_features=embedding_dim),
-            nn.LeakyReLU(),
+            nn.ReLU(),
         )
         
         self.layer_norm = nn.LayerNorm((embedding_dim))
@@ -103,12 +103,12 @@ class SelfAttention(nn.Module):
         # 合并后面两个维度
         context_layer = context_layer.reshape(batch_size, -1, self.embedding_dim)
 
-        context_layer = self.layer_norm(context_layer + residual)
         context_layer = self.out_fc(context_layer)
+        context_layer = self.layer_norm(context_layer + residual)
 
-        #  [batch_size, sequence_length, 1]
-        mask = mask.unsqueeze(dim=2)
-        context_layer = torch.mul(context_layer, mask)
+        # #  [batch_size, sequence_length, 1]
+        # mask = mask.unsqueeze(dim=2)
+        # context_layer = torch.mul(context_layer, mask)
 
         if need_weights:
             return context_layer, attention_scores.sum(dim=1) / self.num_heads
@@ -187,7 +187,7 @@ class MultiHeadAttention(nn.Module):
 
         self.output_fc = nn.Sequential(
             nn.Linear(in_features=embedding_dim, out_features=embedding_dim),
-            nn.LeakyReLU(),
+            nn.ReLU(),
         )
         
         self.dropout = nn.Dropout(dropout_prob)
@@ -204,16 +204,13 @@ class MultiHeadAttention(nn.Module):
         x = x.permute(0, 2, 1, 3)
         return x
 
-    def forward(self, query: Tensor, key: Tensor, value: Tensor, query_mask: Tensor=None, key_mask:Tensor=None, need_weights: bool=False):
+    def forward(self, query: Tensor, key: Tensor, value: Tensor, mask:Tensor=None, need_weights: bool=False):
         '''
         query: [batch_size, query_len, embedding_dim]
         key: [batch_size, key_len, embedding_dim]
         value: [batch_size, value_len, embedding_dim]
 
-        query_mask:
-            [batch_size, query_len]
-
-        key_mask: 
+        mask: 
             if self attention (query = key = value):
                 mask = [batch_size, 1, seq_len, seq_len]
             if not self attention (query != key and query != value):
@@ -235,10 +232,10 @@ class MultiHeadAttention(nn.Module):
         # [batch_size, num_heads, query_len, key_len]
         energy = torch.matmul(Q, K.permute(0, 1, 3, 2)) / self.scale
 
-        if key_mask is not None:
+        if mask is not None:
             # [batch_size, 1, 1, key_len]
-            key_mask = key_mask.unsqueeze(1).unsqueeze(2)
-            energy = energy.masked_fill(key_mask == 0.0, -10000.0)
+            mask = mask.unsqueeze(1).unsqueeze(2)
+            energy = energy.masked_fill(mask == 0.0, -10000.0)
 
         # [batch_size, num_heads, query_len, key_len]
         attention = torch.softmax(energy, dim=-1)
@@ -251,15 +248,10 @@ class MultiHeadAttention(nn.Module):
 
         # [batch_size, query_len, embedding_dime]
         context_layer = context_layer.reshape(batch_size, -1, self.embedding_dim)
-        context_layer = self.layer_norm(context_layer + residual)
 
         # [batch_size, query_len, embedding_dime]
         context_layer = self.output_fc(context_layer)
-
-        # [batch_size, query_len, 1]
-        if query_mask is not None:
-            query_mask = query_mask.unsqueeze(dim=2)
-            context_layer = torch.mul(context_layer, query_mask)
+        context_layer = self.layer_norm(context_layer + residual)
 
         if need_weights:
             return context_layer, attention.sum(dim=1) / self.num_heads
@@ -283,7 +275,7 @@ if __name__ == "__main__":
 
         m_att = MultiHeadAttention(embedding_dim=4, num_heads=2, device='cpu')
 
-        context, weights = m_att(query=q, key=k, value=v, query_mask=query_mask, key_mask=key_mask, need_weights=True)
+        context, weights = m_att(query=q, key=k, value=v, mask=key_mask, need_weights=True)
         print(context.shape)
         print(weights.shape)
         print('=======')

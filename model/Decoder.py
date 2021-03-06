@@ -22,13 +22,16 @@ class DGCNNDecoder(nn.Module):
         self.conv1d_layer = nn.ModuleList()
         for i in range(len(dilations)):
             self.conv1d_layer.append(
-                nn.Conv1d(
-                    in_channels=in_channels,
-                    out_channels=in_channels,
-                    kernel_size=kernel_sizes[i],
-                    stride=1,
-                    dilation=dilations[i],
-                    padding=int((dilations[i] * (kernel_sizes[i] - 1)) / 2) # padding保证输入和和输出的维度一样
+                nn.Sequential(
+                    nn.Conv1d(
+                        in_channels=in_channels,
+                        out_channels=in_channels,
+                        kernel_size=kernel_sizes[i],
+                        stride=1,
+                        dilation=dilations[i],
+                        padding=int((dilations[i] * (kernel_sizes[i] - 1)) / 2) # padding保证输入和和输出的维度一样
+                    ),
+                    nn.ReLU(),
                 )
         )
 

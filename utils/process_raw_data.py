@@ -118,7 +118,7 @@ def count_len(data: list):
     # plt.bar(lengths, count)
     # plt.show()
 
-def process_spo_list(text: str, spo_list: list, repair_song: bool=True):
+def process_spo_list(text: str, spo_list: list, repair_song: bool=False):
     '''
     处理spo_list,处理成{subject: 'subject', subject_start: 0, subject_end:3, predicate: 'predicate', object: 'object', object_start: 5, object_end = 7}
     '''
@@ -144,19 +144,11 @@ def process_spo_list(text: str, spo_list: list, repair_song: bool=True):
         for name in some_name:
             if s in name and text.count(s) == 1:
                 s = name
-
-    #     if p == '所属专辑':
-    #         song.append(s)
-    #         album.append(o)
-    #     spo['subject'] = s
-    #     spo['object'] = o
-
-    # ps = ['歌手', '作词', '作曲'] 
-    # for spo in spo_list:
-    #     s, p, o = spo['subject'], spo['predicate'], spo['object']
-    #     if repair_song:
-    #         if p in ps and s in album and s not in song:
-    #             continue
+        
+        if repair_song:
+            if p == '所属专辑':
+                song.append(s)
+                album.append(o)
 
         temp = dict()
         temp['subject'] = s
@@ -172,11 +164,23 @@ def process_spo_list(text: str, spo_list: list, repair_song: bool=True):
             continue
 
         new_spo_list.append(temp)
+    
+    if repair_song:
+        ret_spo_list = []
+        ps = ['歌手', '作词', '作曲']
+        
+        for spo in new_spo_list:
+            s, p, o = spo['subject'], spo['predicate'], spo['object']
+            if p in ps and s in album and s not in song:
+                continue
+            ret_spo_list.append(spo)
+
+        return ret_spo_list
 
     return new_spo_list
 
 
-def process_train_data(path: str, save_file_name: str, all_chars: set, keep_max_length: int=300, max_item: int=-1):
+def process_train_data(path: str, save_file_name: str, all_chars: set, keep_max_length: int=300, repair_song: bool=False):
     lines = read_all_lines(path)
     my_raw_data = []
 
@@ -184,10 +188,6 @@ def process_train_data(path: str, save_file_name: str, all_chars: set, keep_max_
 
     for i, line in tqdm(enumerate(lines)):
         
-        # 最多需要多少条数据
-        if len(my_raw_data) == max_item:
-            break
-
         tmp = ujson.decode(line)
         text = tmp['text'].lower()
 
@@ -196,7 +196,7 @@ def process_train_data(path: str, save_file_name: str, all_chars: set, keep_max_
             if len(char) > 0:
                 all_chars.add(char)
             
-        spo_list = process_spo_list(text, tmp['spo_list'])
+        spo_list = process_spo_list(text, tmp['spo_list'], repair_song=repair_song)
 
         # 删除长度过长、没有找到实体信息的句子
         if len(tmp['text']) > keep_max_length or len(spo_list) == 0:
@@ -236,10 +236,12 @@ def merge_all_chars():
 if __name__ == "__main__":
     process_all_50_schemas(ALL_50_SCHEMAS_FILE)
     all_chars = set()
-    max_seq_len = 512
-    
-    process_train_data(TRAIN_FILE, 'my_train_data.json', all_chars, keep_max_length=max_seq_len)
-    process_train_data(DEV_FILE, 'my_dev_data.json', all_chars, keep_max_length=max_seq_len)
+
+    max_seq_len = 200
+    repair_song = False
+
+    process_train_data(TRAIN_FILE, 'my_train_data.json', all_chars, keep_max_length=max_seq_len, repair_song=repair_song)
+    process_train_data(DEV_FILE, 'my_dev_data.json', all_chars, keep_max_length=max_seq_len, repair_song=repair_song)
   
     all_chars = list(all_chars)
     all_chars.sort()

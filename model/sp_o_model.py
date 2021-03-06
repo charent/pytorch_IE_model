@@ -81,7 +81,7 @@ class TextData(object):
         subject_max_len = 0
         for data in raw_data:
             max_seq_len = max(len(data['text']), max_seq_len)
-            subject_max_len = max(max([ len(spo['subject']) for spo in data['spo_list']]), subject_max_len)
+            subject_max_len = max(max([len(spo['subject']) for spo in data['spo_list']]), subject_max_len)
 
         return max_seq_len, subject_max_len
 
@@ -137,7 +137,7 @@ class SpoDataset(Dataset):
                 o_end[spo['object_end'] - 1] = 1.0
 
         p_info = self.predicate_info[p_choose]
-        o_query_text = '{}，{}，{}，{}。'.format(p_info['s_type'], s_choose, p_choose, p_info['o_type'])
+        o_query_text = '{}，{}，{}，{}。{}'.format(p_info['s_type'], s_choose, p_choose, p_info['o_type'], text)
         
         return text, o_query_text, sp_start, sp_end, o_start, o_end, len(text)
 
@@ -307,8 +307,7 @@ class ObjectModel(nn.Module):
             query=share_feature,
             key=rnn_out,
             value=rnn_out,
-            query_mask=share_mask,
-            key_mask=query_mask,
+            mask=query_mask,
         )
 
         outs = self.cnn(outs)
@@ -544,7 +543,7 @@ class Trainer(object):
                     o_ema.update_params()
 
                     if config.log_loss and (step % 100 == 0 or step == steps - 1) :
-                        log.info('epoch: {}, step: {}, loss: {:.5f} .'.format(epoch, step, loss_cpu))
+                        log.info('epoch: {}, step: {}, loss: {:.5f}.'.format(epoch, step, loss_cpu))
 
                     # warm up
                     if epoch < config.warm_up_epoch:
@@ -591,7 +590,7 @@ class Trainer(object):
                     o_ema.restore_best_params()
                     restore_best_state = True
                     f1_not_up_count = 0
-                    # patience += 2
+                    patience += 1
 
             if not restore_best_state:
                 sp_ema.restore()
@@ -704,7 +703,7 @@ def compute_batch_spo(models: tuple, embeddings: tuple, text: list, predicate_in
                     predicate = id2predicate[str(s_p_id)]
 
                     p_info = predicate_info[predicate]
-                    o_query_text = '{}，{}，{}，{}。'.format(p_info['s_type'], subject, predicate, p_info['o_type'])
+                    o_query_text = '{}，{}，{}，{}。{}'.format(p_info['s_type'], subject, predicate, p_info['o_type'], text_)
 
                     batch_ids.append(bs_id)     # 记录po是那一条text的
                     batch_sp.append((subject, predicate))

@@ -11,7 +11,7 @@ class Config(object):
     num_workers = 0 if platform.system() == 'Windows' else 1
 
     # 是否将loss保存到文件
-    log_loss = False if platform.system() == 'Windows' else True
+    log_loss = False
 
     # 最后一个epoch的学习率衰减为初始学习率的 1 / 10 （大约）
     lr_T_max = int(epoch * 0.1)

@@ -118,8 +118,6 @@ class TorchEmbedding(nn.Module):
         if max_len is None:
             max_len = max(length)
 
-        # text_id = torch.zeros(batch_size, max_len, dtype=torch.long, requires_grad=False)
-        # mask =  torch.zeros(batch_size, max_len, dtype=torch.double, requires_grad=False)
         text_id = np.zeros((batch_size, max_len), dtype=np.int64)
         get = self.char2id.get
 

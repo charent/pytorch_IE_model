@@ -53,11 +53,13 @@ class MultiheadAttentionEncoder(nn.Module):
         return query
 
 class RNNEncoder(nn.Module):
-    def __init__(self, embedding_dim: int, num_layers: int, hidden_size: int=256, rnn_type: str='gru'):
+    def __init__(self, embedding_dim: int, num_layers: int, hidden_size: int, rnn_type: str='gru'):
         '''
         rnn_type: 'lstm', 'rnn'
         '''
         super(RNNEncoder, self).__init__()
+
+        self.embedding_dim = embedding_dim
         
         if rnn_type == 'gru':
             self.rnn = nn.GRU(
@@ -82,12 +84,14 @@ class RNNEncoder(nn.Module):
 
         self.out_fc = nn.Sequential(
             nn.Linear(hidden_size * 2, embedding_dim),
-            nn.LeakyReLU(),
+            nn.ReLU(),
         )
 
     def forward(self, input_embedding: Tensor, mask: Tensor):
         '''
         '''
+        self.rnn.flatten_parameters()
+        
         max_seq_len = input_embedding.shape[1]
 
         # 长度应该是cpu上的向量
@@ -114,7 +118,7 @@ if __name__ == '__main__':
         pos = torch.randn((2, 3, 4))
         mask = torch.FloatTensor([[1,1,0],[1,1,1]])
 
-        model = RNNEncoder(embedding_dim=4, num_layers=2, rnn_type='lstm')
+        model = RNNEncoder(embedding_dim=4, num_layers=2, hidden_size=4, rnn_type='lstm')
         
         out = model(x, mask)
         print(out.shape)
