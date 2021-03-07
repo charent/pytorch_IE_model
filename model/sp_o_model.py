@@ -18,6 +18,7 @@ from utils.logger import Logger
 from embedding.torchEmbedding import TorchEmbedding, PositionEmbedding, EmbeddingProcessor
 from embedding.AlbertEmbedding import AlbertEmbedding
 from model.attention import SelfAttention, MultiHeadAttention
+from model.loss_function import DynamicFocalLossBCE, FocalLossBCE
 from model.Decoder import DGCNNDecoder
 from model.Encoder import RNNEncoder
 from model.model_utils import EMA
@@ -168,15 +169,15 @@ def collate_fn(data):
         'o_query_text': o_query_text,
         'sp_start': as_tensor(sp_start),
         'sp_end': as_tensor(sp_end),
-        'o_start': as_tensor(o_start).long(),
-        'o_end': as_tensor(o_end).long(),
+        'o_start': as_tensor(o_start),
+        'o_end': as_tensor(o_end),
     }
 
     return ret 
 
-# 预测主实体的模型
+# 预测主实体和关系的模型
 class SubjectPredicateModel(nn.Module):
-    def __init__(self, embedding_size: int, num_predicate: int, num_heads: int, rnn_hidden_size: int=128, forward_dim: int=128, device: str='cuda', dropout_prob: float=0.1):
+    def __init__(self, embedding_size: int, num_predicate: int, num_heads: int, rnn_hidden_size: int, forward_dim: int, device: str='cuda', dropout_prob: float=0.1):
         '''
         embedding_size： 词向量的大小
         num_predicate: 模型要预测的关系总数
@@ -281,13 +282,13 @@ class ObjectModel(nn.Module):
         self.object_start_fc = nn.Sequential(
             nn.Linear(in_features=forward_dim_in, out_features=forward_dim),
             nn.ReLU(),
-            nn.Linear(forward_dim, 2),
+            nn.Linear(forward_dim, 1),
         )
 
         self.object_end_fc = nn.Sequential(
             nn.Linear(in_features=forward_dim_in, out_features=forward_dim),
             nn.ReLU(),
-            nn.Linear(forward_dim, 2),
+            nn.Linear(forward_dim, 1),
         )
 
     def forward(self, share_feature: Tensor, share_mask: Tensor, query_embedding: Tensor, query_mask: Tensor, query_pos_embedding: Tensor):
@@ -402,9 +403,11 @@ class Trainer(object):
         # s_model.apply(init_weights)
 
         bce_loss = nn.BCEWithLogitsLoss(reduction='none').to(device)
-        ce_loss  = nn.CrossEntropyLoss(reduction='none').to(device)
         # bce_loss = FocalLossBCE(device=device, alpha=0.4, gamma=1.0, with_logits=True).to(device)
-        # ce_loss = FocalLossCrossEntropy(num_class=self.num_predicate, device=device, alpha=0.9, gamma=2.0, reduce='none').to(device)
+        f_bce_loss = FocalLossBCE(device=device, alpha=0.4, gamma=1.0, with_logits=True).to(device)
+        # f_bce_loss = DynamicFocalLossBCE(device=device, gamma=1.0).to(device)
+
+
 
         # 网络参数
         params = []
@@ -423,7 +426,7 @@ class Trainer(object):
         best_f1 = 0.0
         best_epoch = 0
 
-        patience = 3
+        patience = 10
         # lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         #     optimizer, 
         #     mode='max', # max表示当监控量停止上升的时候，学习率将减小
@@ -498,17 +501,18 @@ class Trainer(object):
                         query_pos_embedding=o_query_pos_embedding,
                     )
 
-                    # o_start_pred = torch.squeeze(o_start_pred, dim=2)
-                    # o_end_pred = torch.squeeze(o_end_pred, dim=2)
+                    o_start_pred = torch.squeeze(o_start_pred, dim=2)
+                    o_end_pred = torch.squeeze(o_end_pred, dim=2)
 
-                    o_start_pred = o_start_pred.permute(0, 2, 1)
-                    o_end_pred = o_end_pred.permute(0, 2, 1)
+                    # softmax
+                    # o_start_pred = o_start_pred.permute(0, 2, 1)
+                    # o_end_pred = o_end_pred.permute(0, 2, 1)
                 
                     if config.from_pertrained in ['bert', 'albert']:
                         sp_start_pred = sp_start_pred[:, 1: - 1, :]
                         sp_end_pred = sp_end_pred[:, 1: - 1, :]
-                        o_start_pred = o_start_pred[:, :, 1: - 1]
-                        o_end_pred = o_end_pred[:, :, 1: - 1]
+                        o_start_pred = o_start_pred[:, 1: - 1]
+                        o_end_pred = o_end_pred[:, 1: - 1]
                         input_length -= 2
                         input_mask = create_mask_from_lengths(input_length)
 
@@ -522,8 +526,8 @@ class Trainer(object):
                     sp_end_loss = torch.mean(sp_end_loss)
                     
                     # 计算o模型损失
-                    o_start_loss = torch.masked_select(ce_loss(o_start_pred, o_start_true), loss_mask)
-                    o_end_loss = torch.masked_select(ce_loss(o_end_pred, o_end_true), loss_mask)
+                    o_start_loss = torch.masked_select(f_bce_loss(o_start_pred, o_start_true), loss_mask)
+                    o_end_loss = torch.masked_select(f_bce_loss(o_end_pred, o_end_true), loss_mask)
                     o_start_loss = torch.mean(o_start_loss)
                     o_end_loss = torch.mean(o_end_loss)
             
@@ -590,7 +594,7 @@ class Trainer(object):
                     o_ema.restore_best_params()
                     restore_best_state = True
                     f1_not_up_count = 0
-                    patience += 1
+                    # patience += 1
 
             if not restore_best_state:
                 sp_ema.restore()
@@ -749,9 +753,9 @@ def compute_batch_spo(models: tuple, embeddings: tuple, text: list, predicate_in
             o_end = o_end_pred[0: len(text_)]
 
             for i, o_s in enumerate(o_start):
-                if o_s == 1:
+                if o_s >= 0.45:
                     for j, o_e in enumerate(o_end[i: ]):
-                        if o_e >= 1:
+                        if o_e >= 0.4:
                             object_ = text_[i: i + j + 1]
                             batch_spo_pred[bs_id].append(sp + (object_, ))
                             break
@@ -793,7 +797,7 @@ def compute_o(o_model: ObjectModel, embeddings: tuple, share_feature: Tensor, sh
     '''
     '''
     embedding, position_embedding = embeddings
-    argmax = torch.argmax
+    sigmoid = torch.sigmoid
 
     if config.from_pertrained in ['bert', 'albert']:
         o_query_embedding, cls_embedding, o_query_length, attention_mask = embedding(o_query_text)
@@ -810,15 +814,16 @@ def compute_o(o_model: ObjectModel, embeddings: tuple, share_feature: Tensor, sh
         query_mask=query_mask,
         query_pos_embedding=o_query_pos_embedding,
     )
-    # o_start_pred = torch.squeeze(o_start_pred, dim=2)
-    # o_end_pred = torch.squeeze(o_end_pred, dim=2)
+    # sigmoid
+    o_start_pred = torch.squeeze(o_start_pred, dim=2)
+    o_end_pred = torch.squeeze(o_end_pred, dim=2)
 
     if config.from_pertrained in ['bert', 'albert']:
         o_start_pred = o_start_pred[:, :, 1: - 1]
         o_end_pred = o_end_pred[:, :, 1: - 1]
 
-    o_start_pred = argmax(o_start_pred, dim=2).cpu().detach().numpy()
-    o_end_pred = argmax(o_end_pred, dim=2).cpu().detach().numpy()
+    o_start_pred = sigmoid(o_start_pred).cpu().detach().numpy()
+    o_end_pred = sigmoid(o_end_pred).cpu().detach().numpy()
     return o_start_pred, o_end_pred
 
 def load_model_and_evalute(config: Config, device):

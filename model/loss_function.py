@@ -3,6 +3,57 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
+# 动态二分类交叉熵的focal loss
+class DynamicFocalLossBCE(nn.Module):
+    '''
+    二分类交叉熵的focal loss
+    '''
+    def __init__(self, gamma: float=1.0, device: str='cuda'):
+        '''
+        alpha： 正样本被正确划分时的权重，此时，负样本的权重为1-alpha
+        gamma: 损失放大系数
+        '''
+        super(DynamicFocalLossBCE, self).__init__()
+        
+        self.gamma = gamma
+        self.device = device
+      
+        self.BCELoss = nn.BCEWithLogitsLoss(reduction='none')
+
+    def forward(self, inputs: Tensor, targets: Tensor):
+        '''
+        '''
+        
+        # 计算标准交叉熵
+        bce_loss = self.BCELoss(inputs, targets)
+       
+
+        # 计算alpha，一行中1的个数除以行的总长度, 正样本的权重
+        alpha = 1 - (torch.sum(targets, dim=-1) / targets.shape[-1])
+       
+        for _ in range(len(targets.shape) - len(alpha.shape)):
+            alpha = alpha.unsqueeze(dim=-1)
+
+        
+        # 计算正样本的权重
+        pos_weight = torch.ones(targets.shape).to(self.device) * alpha
+
+        # 控制正负样本的权重,aplha_t
+        alpha_weight = torch.where(torch.eq(targets, 1), pos_weight, 1.0 - pos_weight)  #  1.0 - pos_weight 为负样本的权重
+
+        # with_logits输出没有激活函数，要重新计算一遍
+        inputs = torch.sigmoid(inputs)
+
+        #  aplha_t *  (1-pt)^gamma)
+        focal_weight  = torch.where(torch.eq(targets, 1), 1.0 - inputs, inputs)
+        focal_weight = alpha_weight * torch.pow(focal_weight, self.gamma)
+
+        # 根据公式计算最后的focal loss,
+        # fl(pt) = - aplha_t * (1-pt)^gamma) * log(pt), 其中 -log(pt)=bce_loss
+        loss =  focal_weight * bce_loss
+        
+        return loss
+
 #  二分类交叉熵的focal loss
 class FocalLossBCE(nn.Module):
     '''
@@ -12,6 +63,7 @@ class FocalLossBCE(nn.Module):
         '''
         alpha： 正样本被正确划分时的权重，此时，负样本的权重为1-alpha
         gamma: 损失放大系数
+        with_logits：输出没有用激活函数
         '''
         super(FocalLossBCE, self).__init__()
         
@@ -31,19 +83,18 @@ class FocalLossBCE(nn.Module):
         bce_loss = self.BCELoss(inputs, targets)
 
         # 计算正负样本的权重
-        pos_weight = torch.ones(targets.shape) * self.alpha     # 正样本的权重
-        pos_weight = pos_weight.to(self.device)
+        pos_weight = torch.ones(targets.shape).to(self.device) * self.alpha     # 正样本的权重
 
         # 控制正负样本的权重,aplha_t
         alpha_weight = torch.where(torch.eq(targets, 1), pos_weight, 1.0 - pos_weight)  #  1.0 - pos_weight 为负样本的权重
 
+        # with_logits输出没有激活函数，要重新计算一遍
         if self.with_logits:
             inputs = torch.sigmoid(inputs)
 
         #  aplha_t *  (1-pt)^gamma)
-        gamma = self.gamma
         focal_weight  = torch.where(torch.eq(targets, 1), 1.0 - inputs, inputs)
-        focal_weight = alpha_weight * torch.pow(focal_weight, gamma)
+        focal_weight = alpha_weight * torch.pow(focal_weight, self.gamma)
 
         # 根据公式计算最后的focal loss,
         # fl(pt) = - aplha_t * (1-pt)^gamma) * log(pt), 其中 -log(pt)=bce_loss
@@ -101,6 +152,15 @@ class FocalLossCrossEntropy(nn.Module):
 if __name__ == "__main__":
     device = 'cpu'
     # bs=2, class=[0,1,2,3], seq_len=5
+    targets  = torch.FloatTensor([[1, 0, 1, 1], [1,1,0,0]]).to(device)
+    outputs = torch.FloatTensor([[0.95, 0.05, 0.4, 0.6],[0.7,0.7,0.2,0.2]]).to(device)
+
+    f_loss = DynamicFocalLossBCE(device=device, gamma=1.0)
+    loss = f_loss(outputs, targets)
+    print(loss)
+
+
+    exit()
     outputs  = torch.randn((3, 4, 5))
     tragets = torch.LongTensor([[0,1,2,1,0],[0,3,0,1,2],[0,1,2,3,1]])
     FCELoss = FocalLossCrossEntropy(num_class=4, device=device, alpha=0.8, gamma=1.0, reduce='none')
