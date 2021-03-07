@@ -80,8 +80,6 @@ class RNNEncoder(nn.Module):
         else:
             raise ValueError('value rnn_type({}) not in [\'lstm\', \'gru\']'.format(rnn_type))
 
-        self.output_layer_norm = nn.LayerNorm((embedding_dim))
-
         self.out_fc = nn.Sequential(
             nn.Linear(hidden_size * 2, embedding_dim),
             nn.ReLU(),
@@ -102,9 +100,6 @@ class RNNEncoder(nn.Module):
         out, _ = pad_packed_sequence(inputs, batch_first=True, total_length=max_seq_len)
 
         out = self.out_fc(out)
-        out = self.output_layer_norm(out)
-        mask = mask.unsqueeze(dim=2)
-        out = torch.mul(out, mask)
 
         return out
 

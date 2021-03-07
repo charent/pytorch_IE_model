@@ -8,13 +8,14 @@ class DynamicFocalLossBCE(nn.Module):
     '''
     二分类交叉熵的focal loss
     '''
-    def __init__(self, gamma: float=1.0, device: str='cuda'):
+    def __init__(self, alpha: float=0.3, gamma: float=1.0, device: str='cuda'):
         '''
         alpha： 正样本被正确划分时的权重，此时，负样本的权重为1-alpha
         gamma: 损失放大系数
         '''
         super(DynamicFocalLossBCE, self).__init__()
         
+        self.alpha = alpha
         self.gamma = gamma
         self.device = device
       
@@ -23,13 +24,11 @@ class DynamicFocalLossBCE(nn.Module):
     def forward(self, inputs: Tensor, targets: Tensor):
         '''
         '''
-        
         # 计算标准交叉熵
         bce_loss = self.BCELoss(inputs, targets)
        
-
         # 计算alpha，一行中1的个数除以行的总长度, 正样本的权重
-        alpha = 1 - (torch.sum(targets, dim=-1) / targets.shape[-1])
+        alpha = (1.0 - (torch.sum(targets, dim=-1) / targets.shape[-1])) * self.alpha
        
         for _ in range(len(targets.shape) - len(alpha.shape)):
             alpha = alpha.unsqueeze(dim=-1)
@@ -152,10 +151,10 @@ class FocalLossCrossEntropy(nn.Module):
 if __name__ == "__main__":
     device = 'cpu'
     # bs=2, class=[0,1,2,3], seq_len=5
-    targets  = torch.FloatTensor([[1, 0, 1, 1], [1,1,0,0]]).to(device)
+    targets  = torch.FloatTensor([[1, 0, 0, 0], [1,1,0,0]]).to(device)
     outputs = torch.FloatTensor([[0.95, 0.05, 0.4, 0.6],[0.7,0.7,0.2,0.2]]).to(device)
 
-    f_loss = DynamicFocalLossBCE(device=device, gamma=1.0)
+    f_loss = DynamicFocalLossBCE(device=device, gamma=2.0)
     loss = f_loss(outputs, targets)
     print(loss)
 

@@ -300,7 +300,7 @@ class ObjectModel(nn.Module):
             input_embedding=query_embedding,
             mask=query_mask,
         )
-        rnn_out = self.layernorm(rnn_out + query_pos_embedding)
+        rnn_out = self.layernorm( rnn_out + query_embedding + query_pos_embedding)
         
         # cnn_outs = self.cnn(rnn_out, query_mask)
 
@@ -403,9 +403,10 @@ class Trainer(object):
         # s_model.apply(init_weights)
 
         bce_loss = nn.BCEWithLogitsLoss(reduction='none').to(device)
-        # bce_loss = FocalLossBCE(device=device, alpha=0.4, gamma=1.0, with_logits=True).to(device)
-        f_bce_loss = FocalLossBCE(device=device, alpha=0.4, gamma=1.0, with_logits=True).to(device)
-        # f_bce_loss = DynamicFocalLossBCE(device=device, gamma=1.0).to(device)
+        # bce_loss =  DynamicFocalLossBCE(alpha=0.7, gamma=2.0, device=device).to(device)
+        # bce_loss = FocalLossBCE(alpha=0.25, gamma=2.0, with_logits=True, device=device).to(device)
+        f_bce_loss = FocalLossBCE(alpha=0.25, gamma=2.0, with_logits=True, device=device).to(device)
+        # f_bce_loss = DynamicFocalLossBCE(alpha=0.25, gamma=2.0, device=device).to(device)
 
 
 

@@ -23,7 +23,7 @@ class Config(object):
     warm_up_epoch = 1
 
     # output linear forward dim
-    forward_dim = 128
+    forward_dim = int(embedding_size * 2)
 
     # gru or lstm hidden_size
     rnn_hidden_size = 128
