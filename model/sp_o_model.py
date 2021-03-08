@@ -201,8 +201,8 @@ class SubjectPredicateModel(nn.Module):
             device=device,
         )
 
-        d = [1, 2, 3, 1, ]
-        k = [3, 3, 3, 3, ]
+        d = [1, 2, 3, 1, 2, 3]
+        k = [3, 3, 3, 5, 5, 5]
         self.cnn = DGCNNDecoder(
             dilations=d,
             kernel_sizes=k,
@@ -257,7 +257,7 @@ class ObjectModel(nn.Module):
 
         self.embedding_encoder = RNNEncoder(
             embedding_dim=embedding_size,
-            num_layers=1,
+            num_layers=2,
             rnn_type='gru',
             hidden_size=rnn_hidden_size,
         )
@@ -270,8 +270,8 @@ class ObjectModel(nn.Module):
             device=device,
         )
 
-        d = [1, 2, 3, 1, ]
-        k = [3, 3, 3, 3, ]
+        d = [1, 2, 3, 1, 2, 3]
+        k = [3, 3, 3, 5, 5, 5]
         self.cnn = DGCNNDecoder(
             dilations=d,
             kernel_sizes=k,

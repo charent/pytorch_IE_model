@@ -259,7 +259,7 @@ class SubjectObjectModel(nn.Module):
         self.embedding_encoder = RNNEncoder(
             embedding_dim=embedding_size,
             hidden_size=rnn_hidden_size,
-            num_layers=1,
+            num_layers=2,
             rnn_type='gru',
         )
 

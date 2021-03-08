@@ -82,7 +82,6 @@ class RNNEncoder(nn.Module):
 
         self.out_fc = nn.Sequential(
             nn.Linear(hidden_size * 2, embedding_dim),
-            nn.ReLU(),
         )
 
     def forward(self, input_embedding: Tensor, mask: Tensor):
