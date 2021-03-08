@@ -66,6 +66,7 @@ class TextData(object):
         predicate2id = self.predicate2id
         max_seq_len = self.max_seq_len
 
+        print('process data ...')
         for data in raw_data:
             text.append(data['text'])
             spo_list = data['spo_list']
@@ -179,7 +180,7 @@ def collate_fn(data):
     return ret 
 
 class PredicateModel(nn.Module):
-    def __init__(self, embedding_size: int, num_predicate: int, num_heads: int, forward_dim: int=128, device: str='cuda', dropout_prob: float=0.1):
+    def __init__(self, embedding_size: int, num_predicate: int, num_heads: int, forward_dim: int, rnn_hidden_size: int, device: str='cuda', dropout_prob: float=0.1):
         '''
         embedding_size： 词向量的大小
         num_predicate: 模型要预测的关系总数
@@ -190,9 +191,18 @@ class PredicateModel(nn.Module):
 
         self.embedding_encoder = RNNEncoder(
             embedding_dim=embedding_size,
+            hidden_size=rnn_hidden_size,
             num_layers=2,
             rnn_type='gru',
         )
+
+        self.self_attention = SelfAttention(
+            embedding_dim=embedding_size,
+            num_heads=num_heads,
+            device=device,
+        )
+
+        self.layernorm = nn.LayerNorm((embedding_size))
 
         d = [1, 2, 3, 1, 2, 3]
         k = [3, 3, 3, 5, 5, 5]
@@ -202,17 +212,10 @@ class PredicateModel(nn.Module):
             in_channels=embedding_size,
         )
 
-        
-        self.self_attention = SelfAttention(
-            embedding_dim=embedding_size,
-            num_heads=num_heads,
-            device=device,
-        )
-
         forward_dim_in = embedding_size * 2
         self.predicate_fc = nn.Sequential(
             nn.Linear(in_features=forward_dim_in, out_features=forward_dim),
-            nn.GELU(),
+            nn.ReLU(),
             nn.Linear(in_features=forward_dim, out_features=num_predicate),
         )
 
@@ -225,16 +228,19 @@ class PredicateModel(nn.Module):
             input_embedding=input_embedding,
             mask=mask,
         )
-        share_feature = self.cnn(share_feature, mask)
+        share_feature = self.layernorm(share_feature + position_embedding)
+
         #===========================================================================================#
 
-        attention, _ = self.self_attention(
+        att_out, _ = self.self_attention(
             inputs=share_feature,
             mask=mask,
         )
 
-        att_max_pool = tensor_max_poll(attention, mask)
-        att_avg_pool = tensor_avg_poll(attention, mask)
+        outs = self.cnn(att_out)
+
+        att_max_pool = tensor_max_poll(outs, mask)
+        att_avg_pool = tensor_avg_poll(outs, mask)
 
         inputs = torch.cat([att_max_pool, att_avg_pool], dim=1)
         preidcate_pred = self.predicate_fc(inputs)
@@ -243,7 +249,7 @@ class PredicateModel(nn.Module):
 
 
 class SubjectObjectModel(nn.Module):
-    def __init__(self, embedding_size: int, num_heads, forward_dim: int=128, device: str='cuda', dropout_prob: float=0.1):
+    def __init__(self, embedding_size: int, num_heads, forward_dim: int, rnn_hidden_size: int, device: str='cuda', dropout_prob: float=0.1):
         '''
         '''
         super(SubjectObjectModel, self).__init__()
@@ -252,8 +258,17 @@ class SubjectObjectModel(nn.Module):
 
         self.embedding_encoder = RNNEncoder(
             embedding_dim=embedding_size,
-            num_layers=2,
+            hidden_size=rnn_hidden_size,
+            num_layers=1,
             rnn_type='gru',
+        )
+
+        self.layernorm = nn.LayerNorm((embedding_size))
+
+        self.multi_head_attention = MultiHeadAttention(
+            embedding_dim=embedding_size,
+            num_heads=num_heads,
+            device=device,
         )
 
         d = [1, 2, 3, 1, 2, 3]
@@ -263,37 +278,30 @@ class SubjectObjectModel(nn.Module):
             kernel_sizes=k,
             in_channels=embedding_size,
         )
-
-
-        self.multi_head_attention = MultiHeadAttention(
-            embedding_dim=embedding_size,
-            num_heads=num_heads,
-            device=device,
-        )
          
         forward_dim_in = embedding_size * 1
 
         self.subject_start_fc = nn.Sequential(
             nn.Linear(in_features=forward_dim_in, out_features=forward_dim),
-            nn.GELU(),
+            nn.ReLU(),
             nn.Linear(forward_dim, 1),
         )
 
         self.subject_end_fc = nn.Sequential(
             nn.Linear(in_features=forward_dim_in, out_features=forward_dim),
-            nn.GELU(),
+            nn.ReLU(),
             nn.Linear(forward_dim, 1),
         )
 
         self.object_start_fc = nn.Sequential(
             nn.Linear(in_features=forward_dim_in, out_features=forward_dim),
-            nn.GELU(),
+            nn.ReLU(),
             nn.Linear(forward_dim, 1),
         )
 
         self.object_end_fc = nn.Sequential(
             nn.Linear(in_features=forward_dim_in, out_features=forward_dim),
-            nn.GELU(),
+            nn.ReLU(),
             nn.Linear(forward_dim, 1),
         )
 
@@ -306,17 +314,16 @@ class SubjectObjectModel(nn.Module):
             input_embedding=query_embedding,
             mask=query_mask,
         )
+        rnn_out = self.layernorm( rnn_out + query_embedding + query_pos_embedding)
 
-        rnn_out = self.cnn(rnn_out, query_mask)
-        #===========================================================================================#
-
-        out, _ = self.multi_head_attention(
+        att_out, _ = self.multi_head_attention(
             query=share_feature,
             key=rnn_out,
             value=rnn_out,
-            query_mask=share_mask,
-            key_mask=query_mask,
+            mask=query_mask,
         )
+
+        out = self.cnn(att_out)
 
         subject_start = self.subject_start_fc(out)
         subject_end = self.subject_end_fc(out)
@@ -355,7 +362,7 @@ class Trainer(object):
             ),
             batch_size=config.batch_size,
             shuffle=True,
-            num_workers=0,  # win10下，DataLoader使用lmdb进行多进程加载词向量会报错
+            num_workers=config.num_workers,  # win10下，DataLoader使用lmdb进行多进程加载词向量会报错
             collate_fn=collate_fn, # 不自己写collate_fn处理numpy到tensor的转换会导致数据转换非常慢
             pin_memory=True,
         )
@@ -386,6 +393,7 @@ class Trainer(object):
             embedding_size=config.embedding_size,
             num_predicate=self.num_predicate,
             num_heads=config.num_heads,
+            rnn_hidden_size=config.rnn_hidden_size,
             forward_dim=config.forward_dim,
             device=device,
         ).to(device)
@@ -393,15 +401,17 @@ class Trainer(object):
         so_model = SubjectObjectModel(
             embedding_size=config.embedding_size,
             num_heads=config.num_heads,
+            rnn_hidden_size=config.rnn_hidden_size,
             forward_dim=config.forward_dim,
             device=device,
         ).to(device)
 
-        p_ema = EMA(model=p_model, decay=0.9999)
-        so_ema = EMA(model=so_model, decay=0.9999)
+        p_ema = EMA(model=p_model, decay=0.999)
+        so_ema = EMA(model=so_model, decay=0.999)
 
-        # focal_bce_loss = FocalLossBCE(alpha=0.3, gamma=1.0, with_logits=True, device=device).to(device)
         bce_loss = BCEWithLogitsLoss(reduction='none').to(device)
+        f_bce_loss = FocalLossBCE(alpha=0.25, gamma=2.0, with_logits=True, device=device).to(device)
+
 
         # 网络参数
         params = []
@@ -415,8 +425,14 @@ class Trainer(object):
         steps = int(np.round(self.train_data.len / config.batch_size))
         log.info('epoch: {}, steps: {}'.format(config.epoch, steps))
 
-        best_f1 = 0.0
-        best_epoch = 0
+        patience = 5
+
+        # f1不上升的次数
+        f1_not_up_count = 0
+        f1 = 0.0
+        best_f1 = 0
+        loss_sum = 0.0
+        loss_cpu = 0.0
 
         # warm_up_lambda是一个倍数算子
         warm_up_steps = int(steps * config.warm_up_epoch)
@@ -426,12 +442,14 @@ class Trainer(object):
         lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=config.lr_T_max)
         
         for epoch in range(config.epoch):
-            loss_cpu = 0.0
             p_model.train()
             so_model.train()
+        
+            log.info('epoch: {}, learning rate: {:.6f}, average loss: {:.6f}'.format(
+                epoch, optimizer.state_dict()['param_groups'][0]['lr'], loss_sum / steps
+                )
+            )
             loss_sum = 0.0
-            log.info('epoch: {}, lr: {:.6f}'.format(epoch, optimizer.state_dict()['param_groups'][0]['lr']))
-            print('epoch: {}, start time: {}'.format(epoch, get_formated_time()))
 
             with tqdm(total=steps) as pbar:
                 for step, inputs_outputs in enumerate(train_data_loader):
@@ -496,13 +514,13 @@ class Trainer(object):
                     p_loss = torch.mean(p_loss)
 
                     # 计算so模型的损失
-                    s_start_loss = torch.masked_select(bce_loss(subject_start, s_start_true), loss_mask)
-                    s_end_loss = torch.masked_select(bce_loss(subject_end, s_end_true), loss_mask)
+                    s_start_loss = torch.masked_select(f_bce_loss(subject_start, s_start_true), loss_mask)
+                    s_end_loss = torch.masked_select(f_bce_loss(subject_end, s_end_true), loss_mask)
                     s_start_loss = torch.mean(s_start_loss)
                     s_end_loss = torch.mean(s_end_loss)
 
-                    o_start_loss = torch.masked_select(bce_loss(object_start, o_start_true), loss_mask)
-                    o_end_loss = torch.masked_select(bce_loss(object_end, o_end_true), loss_mask)
+                    o_start_loss = torch.masked_select(f_bce_loss(object_start, o_start_true), loss_mask)
+                    o_end_loss = torch.masked_select(f_bce_loss(object_end, o_end_true), loss_mask)
                     o_start_loss = torch.mean(o_start_loss)
                     o_end_loss = torch.mean(o_end_loss)
 
@@ -545,27 +563,38 @@ class Trainer(object):
                     config=config,
                     id2predicate=self.id2predicate,
                 )
-
+            
+            restore_best_state = False
             if f1 >= best_f1:
                 best_f1 = f1
                 best_epoch = epoch
+                f1_not_up_count = 0
                 if config.from_pertrained not in ['bert', 'albert']:
                     torch.save(embedding.state_dict(), '{}/{}_p_so_embedding.pkl'.format(model_path, config.from_pertrained))
                 torch.save(p_model.state_dict(), '{}/{}_p_model.pkl'.format(model_path, config.from_pertrained))
                 torch.save(so_model.state_dict(), '{}/{}_so_model.pkl'.format(model_path, config.from_pertrained))
-            
-            p_ema.restore()
-            so_ema.restore()
+            else:
+                f1_not_up_count += 1
+                if f1_not_up_count >= patience:
+                    info = 'f1 do not increase {} times, restore best state...'.format(patience)
+                    print_and_log(info, log)
+                    p_ema.restore_best_params()
+                    so_ema.restore_best_params()
+                    restore_best_state = True
+                    f1_not_up_count = 0
+
+            if not restore_best_state:
+                p_ema.restore()
+                so_ema.restore()
              
             info = 'epoch: {}, f1: {:.5f}, precision: {:.5f}, recall: {:.5f}, best_f1: {:.5f}, best_epoch: {}'.format(
                     epoch, f1, precision, recall, best_f1, best_epoch)
-            print_and_log('=' * 64, log)
             print_and_log(info, log)
-            print_and_log('=' * 64, log)
             
             # 调整学习率
             # Note that step should be called after validate()
-            lr_scheduler.step()
+            if epoch > config.warm_up_epoch:
+                lr_scheduler.step()
 
 
 def evaluate(models: tuple, embeddings: tuple, predicate_info: dict, dev_data: list, config: Config, id2predicate: dict, show_details: bool=False):
@@ -733,7 +762,6 @@ def compute_batch_spo(models: tuple, embeddings: tuple, text: list, predicate_in
             
             # 同一个predicat，多个subject对应多个object的情况
             if len(subject_list) >=2 and len(object_list) >= 2:
-                # print(text)
                 # 就近匹配
                 min_len = min(len(subject_list), len(object_list))
                 for i in range(min_len):
@@ -827,6 +855,7 @@ def load_model_and_evalute(config: Config, device, best_f1: float=0.0):
             embedding_size=config.embedding_size,
             num_predicate=num_predicate,
             num_heads=config.num_heads,
+            rnn_hidden_size=config.rnn_hidden_size,
             forward_dim=config.forward_dim,
             device=device,
         ).to(device)
@@ -834,6 +863,7 @@ def load_model_and_evalute(config: Config, device, best_f1: float=0.0):
     so_model = SubjectObjectModel(
         embedding_size=config.embedding_size,
         num_heads=config.num_heads,
+        rnn_hidden_size=config.rnn_hidden_size,
         forward_dim=config.forward_dim,
         device=device,
     ).to(device)

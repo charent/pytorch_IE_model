@@ -533,7 +533,7 @@ class Trainer(object):
                     o_end_loss = torch.mean(o_end_loss)
             
                     # 计算总的损失
-                    loss = 2.0 * (sp_start_loss + sp_end_loss) + (o_start_loss + o_end_loss)
+                    loss = 2.5 * (sp_start_loss + sp_end_loss) + (o_start_loss + o_end_loss)
                     loss_cpu = loss.cpu().detach().numpy()
                     loss_sum += loss_cpu
 
