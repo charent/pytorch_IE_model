@@ -202,7 +202,7 @@ class SubjectPredicateModel(nn.Module):
         )
 
         d = [1, 2, 3, 1, 2, 3]
-        k = [3, 3, 3, 5, 5, 5]
+        k = [5, 5, 5, 3, 3, 3]
         self.cnn = DGCNNDecoder(
             dilations=d,
             kernel_sizes=k,
@@ -271,7 +271,7 @@ class ObjectModel(nn.Module):
         )
 
         d = [1, 2, 3, 1, 2, 3]
-        k = [3, 3, 3, 5, 5, 5]
+        k = [5, 5, 5, 3, 3, 3]
         self.cnn = DGCNNDecoder(
             dilations=d,
             kernel_sizes=k,
