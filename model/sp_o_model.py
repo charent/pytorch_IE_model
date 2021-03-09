@@ -6,7 +6,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 from numpy.random import randint
-from torch.nn.functional import sigmoid
 from torch.utils.data import DataLoader, Dataset
 from torch import Tensor
 from tqdm import tqdm

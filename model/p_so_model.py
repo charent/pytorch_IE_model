@@ -205,7 +205,7 @@ class PredicateModel(nn.Module):
         self.layernorm = nn.LayerNorm((embedding_size))
 
         d = [1, 2, 3, 1, 2, 3]
-        k = [3, 3, 3, 5, 5, 5]
+        k = [5, 5, 5, 3, 3, 3]
         self.cnn = DGCNNDecoder(
             dilations=d,
             kernel_sizes=k,
@@ -272,7 +272,7 @@ class SubjectObjectModel(nn.Module):
         )
 
         d = [1, 2, 3, 1, 2, 3]
-        k = [3, 3, 3, 5, 5, 5]
+        k = [5, 5, 5, 3, 3, 3]
         self.cnn = DGCNNDecoder(
             dilations=d,
             kernel_sizes=k,
@@ -410,6 +410,7 @@ class Trainer(object):
         so_ema = EMA(model=so_model, decay=0.999)
 
         bce_loss = BCEWithLogitsLoss(reduction='none').to(device)
+        # f_bce_loss = BCEWithLogitsLoss(reduction='none').to(device)
         f_bce_loss = FocalLossBCE(alpha=0.25, gamma=2.0, with_logits=True, device=device).to(device)
 
 
