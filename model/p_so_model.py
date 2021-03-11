@@ -180,7 +180,7 @@ def collate_fn(data):
     return ret 
 
 class PredicateModel(nn.Module):
-    def __init__(self, embedding_size: int, num_predicate: int, num_heads: int, forward_dim: int, rnn_hidden_size: int, device: str='cuda', dropout_prob: float=0.1):
+    def __init__(self, embedding_size: int, num_predicate: int, num_heads: int, forward_dim: int, rnn_type: str, rnn_hidden_size: int, device: str='cuda', dropout_prob: float=0.1):
         '''
         embedding_size： 词向量的大小
         num_predicate: 模型要预测的关系总数
@@ -193,7 +193,7 @@ class PredicateModel(nn.Module):
             embedding_dim=embedding_size,
             hidden_size=rnn_hidden_size,
             num_layers=2,
-            rnn_type='gru',
+            rnn_type=rnn_type,
         )
 
         self.self_attention = SelfAttention(
@@ -249,7 +249,7 @@ class PredicateModel(nn.Module):
 
 
 class SubjectObjectModel(nn.Module):
-    def __init__(self, embedding_size: int, num_heads, forward_dim: int, rnn_hidden_size: int, device: str='cuda', dropout_prob: float=0.1):
+    def __init__(self, embedding_size: int, num_heads, forward_dim: int, rnn_type: str, rnn_hidden_size: int, device: str='cuda', dropout_prob: float=0.1):
         '''
         '''
         super(SubjectObjectModel, self).__init__()
@@ -260,7 +260,7 @@ class SubjectObjectModel(nn.Module):
             embedding_dim=embedding_size,
             hidden_size=rnn_hidden_size,
             num_layers=2,
-            rnn_type='gru',
+            rnn_type=rnn_type,
         )
 
         self.layernorm = nn.LayerNorm((embedding_size))
@@ -393,6 +393,7 @@ class Trainer(object):
             embedding_size=config.embedding_size,
             num_predicate=self.num_predicate,
             num_heads=config.num_heads,
+            rnn_type=config.rnn_type,
             rnn_hidden_size=config.rnn_hidden_size,
             forward_dim=config.forward_dim,
             device=device,
@@ -401,6 +402,7 @@ class Trainer(object):
         so_model = SubjectObjectModel(
             embedding_size=config.embedding_size,
             num_heads=config.num_heads,
+            rnn_type=config.rnn_type,
             rnn_hidden_size=config.rnn_hidden_size,
             forward_dim=config.forward_dim,
             device=device,
@@ -856,6 +858,7 @@ def load_model_and_evalute(config: Config, device, best_f1: float=0.0):
             embedding_size=config.embedding_size,
             num_predicate=num_predicate,
             num_heads=config.num_heads,
+            rnn_type=config.rnn_type,
             rnn_hidden_size=config.rnn_hidden_size,
             forward_dim=config.forward_dim,
             device=device,
@@ -864,6 +867,7 @@ def load_model_and_evalute(config: Config, device, best_f1: float=0.0):
     so_model = SubjectObjectModel(
         embedding_size=config.embedding_size,
         num_heads=config.num_heads,
+        rnn_type=config.rnn_type,
         rnn_hidden_size=config.rnn_hidden_size,
         forward_dim=config.forward_dim,
         device=device,

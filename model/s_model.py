@@ -275,8 +275,9 @@ class Trainer(object):
         # sp_model.apply(init_weights)
         # s_model.apply(init_weights)
 
-        bce_loss = nn.BCEWithLogitsLoss(reduction='none').to(device)
-        f_bce_loss = nn.BCEWithLogitsLoss(reduction='none').to(device)
+        # bce_loss = nn.BCEWithLogitsLoss(reduction='none').to(device)
+        bce_loss = FocalLossBCE(alpha=0.25, gamma=2.0, with_logits=True, device=device).to(device)
+
 
         # 网络参数
         params = []
@@ -529,8 +530,6 @@ def load_model_and_evalute(config: Config, device):
         rnn_hidden_size=config.rnn_hidden_size,
         device=device
     ).to(device)
-
-
 
     embedding.load_state_dict(torch.load('{}/{}_s_embedding.pkl'.format(base_path, config.from_pertrained), map_location='cuda:0'))
     s_model.load_state_dict(torch.load('{}/{}_s_model.pkl'.format(base_path, config.from_pertrained), map_location='cuda:0'))

@@ -176,7 +176,7 @@ def collate_fn(data):
 
 # 预测主实体和关系的模型
 class SubjectPredicateModel(nn.Module):
-    def __init__(self, embedding_size: int, num_predicate: int, num_heads: int, rnn_hidden_size: int, forward_dim: int, device: str='cuda', dropout_prob: float=0.1):
+    def __init__(self, embedding_size: int, num_predicate: int, num_heads: int, rnn_type: str, rnn_hidden_size: int, forward_dim: int, device: str='cuda', dropout_prob: float=0.1):
         '''
         embedding_size： 词向量的大小
         num_predicate: 模型要预测的关系总数
@@ -188,7 +188,7 @@ class SubjectPredicateModel(nn.Module):
         self.embedding_encoder = RNNEncoder(
             embedding_dim=embedding_size,
             num_layers=2,
-            rnn_type='gru',
+            rnn_type=rnn_type,
             hidden_size=rnn_hidden_size,
         )
 
@@ -247,7 +247,7 @@ class SubjectPredicateModel(nn.Module):
         return share_feature, sp_start, sp_end
 
 class ObjectModel(nn.Module):
-    def __init__(self, embedding_size: int, num_heads: int, rnn_hidden_size: int=128, forward_dim: int=128, device: str='cuda'):
+    def __init__(self, embedding_size: int, num_heads: int, rnn_type: str, rnn_hidden_size: int, forward_dim: int=128, device: str='cuda'):
         '''
         '''
         super(ObjectModel, self).__init__()
@@ -257,7 +257,7 @@ class ObjectModel(nn.Module):
         self.embedding_encoder = RNNEncoder(
             embedding_dim=embedding_size,
             num_layers=2,
-            rnn_type='gru',
+            rnn_type=rnn_type,
             hidden_size=rnn_hidden_size,
         )
 
@@ -382,6 +382,7 @@ class Trainer(object):
             embedding_size=config.embedding_size,
             num_predicate=self.num_predicate,
             num_heads=config.num_heads,
+            rnn_type=config.rnn_type,
             rnn_hidden_size=config.rnn_hidden_size,
             forward_dim=config.forward_dim,
             device=device
@@ -390,6 +391,7 @@ class Trainer(object):
         o_model = ObjectModel(
             embedding_size=config.embedding_size,
             num_heads=config.num_heads,
+            rnn_type=config.rnn_type,
             rnn_hidden_size=config.rnn_hidden_size,
             forward_dim=config.forward_dim,
             device=device,
@@ -843,14 +845,16 @@ def load_model_and_evalute(config: Config, device):
         embedding_size=config.embedding_size,
         num_predicate=num_predicate,
         num_heads=config.num_heads,
-        forward_dim=config.forward_dim,
+        rnn_type=config.rnn_type,
         rnn_hidden_size=config.rnn_hidden_size,
+        forward_dim=config.forward_dim,
         device=device
     ).to(device)
 
     o_model = ObjectModel(
         embedding_size=config.embedding_size,
         num_heads=config.num_heads,
+        rnn_type=config.rnn_type,
         rnn_hidden_size=config.rnn_hidden_size,
         forward_dim=config.forward_dim,
         device=device,

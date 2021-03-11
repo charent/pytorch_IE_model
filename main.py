@@ -3,8 +3,8 @@ import numpy as np
 from config import Config
 
 # from model.p_so_model import Trainer, load_model_and_evalute
-# from model.sp_o_model import Trainer, load_model_and_evalute
-from model.s_model import Trainer, load_model_and_evalute
+from model.sp_o_model import Trainer, load_model_and_evalute
+# from model.s_model import Trainer, load_model_and_evalute
 
 seed = 233
 np.random.seed(seed)
@@ -29,4 +29,5 @@ if __name__ == "__main__":
     trainer = Trainer()
     trainer.train(config, device)
 
+    # torch.backends.cudnn.benchmark = False
     # load_model_and_evalute(config, device)
