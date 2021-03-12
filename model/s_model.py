@@ -514,7 +514,7 @@ def compute_batch_subject(model: SubjectModel, embeddings: tuple, text: list, co
     
     return batch_subject
 
-def load_model_and_evalute(config: Config, device):
+def load_model_and_test(config: Config, device):
     base_path = parent_path + '/model_file'
     dev_data = read_json(DEV_FILE) 
 

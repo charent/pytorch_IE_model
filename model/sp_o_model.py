@@ -28,6 +28,7 @@ log = Logger('sp_o_model', std_out=False, save2file=True).get_logger()
 parent_path = abspath(dirname(dirname(__file__)))
 TRAIN_FILE = parent_path + '/data/my_train_data.json'
 DEV_FILE = parent_path + '/data/my_dev_data.json'
+TEST_FILE = parent_path + '/data/my_test_data.json'
 ID_PREDICATE_FILE = parent_path + '/data/id_and_predicate_no_unk.json'
 PREDICATE_INFO_FILE = parent_path + '/data/predicate_info.json'
 CHAR2ID_FILE = parent_path + '/data/char2id.json'
@@ -616,8 +617,8 @@ def evaluate(models: tuple, embeddings: tuple, dev_data: list, predicate_info: d
     '''
     评估
     '''
-    # 最小的评估batch是64
-    batch_size = config.batch_size if config.batch_size >= 64 else 64
+    # 最小的评估batch是128
+    batch_size = config.batch_size if config.batch_size >= 128 else 128
 
     spo_list_true = []
     spo_list_pred = []
@@ -828,9 +829,9 @@ def compute_o(o_model: ObjectModel, embeddings: tuple, share_feature: Tensor, sh
     o_end_pred = sigmoid(o_end_pred).cpu().detach().numpy()
     return o_start_pred, o_end_pred
 
-def load_model_and_evalute(config: Config, device):
+def load_model_and_test(config: Config, device):
     base_path = parent_path + '/model_file'
-    dev_data = read_json(DEV_FILE) 
+    dev_data = read_json(TEST_FILE) 
 
     embedding = TorchEmbedding(config.embedding_size, device).to(device)
     position_embedding = PositionEmbedding(config.embedding_size).to(device)

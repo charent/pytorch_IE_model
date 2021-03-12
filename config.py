@@ -26,7 +26,7 @@ class Config(object):
     forward_dim = int(embedding_size * 2)
 
     # rnn_type = ['gru', 'lstm']
-    rnn_type = 'lstm'
+    rnn_type = 'gru'
 
      # gru or lstm hidden_size
     rnn_hidden_size = 256

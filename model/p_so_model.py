@@ -32,6 +32,7 @@ log = Logger('p_so_model', std_out=False, save2file=True).get_logger()
 parent_path = abspath(dirname(dirname(__file__)))
 TRAIN_FILE = parent_path + '/data/my_train_data.json'
 DEV_FILE = parent_path + '/data/my_dev_data.json'
+TEST_FILE = parent_path + '/data/my_test_data.json'
 ID_PREDICATE_FILE = parent_path + '/data/id_and_predicate_no_unk.json'
 PREDICATE_INFO_FILE = parent_path + '/data/predicate_info.json'
 CHAR2ID_FILE = parent_path + '/data/char2id.json'
@@ -604,8 +605,8 @@ def evaluate(models: tuple, embeddings: tuple, predicate_info: dict, dev_data: l
     '''
     评估
     '''
-    # 最小的评估batch是64
-    batch_size = config.batch_size if config.batch_size >= 64 else 64
+    # 最小的评估batch是128
+    batch_size = config.batch_size if config.batch_size >= 128 else 128
 
     spo_list_true = []
     spo_list_pred = []
@@ -842,9 +843,9 @@ def compute_so(so_model: SubjectObjectModel, embeddings: tuple, share_feature: T
     return subject_start, subject_end, object_start, object_end
 
 
-def load_model_and_evalute(config: Config, device, best_f1: float=0.0):
+def load_model_and_test(config: Config, device, best_f1: float=0.0):
     base_path = parent_path + '/model_file'
-    dev_data = read_json(DEV_FILE)
+    dev_data = read_json(TEST_FILE)
     id2predicate, predicate2id = read_json(ID_PREDICATE_FILE)
     predicate_info = read_json(PREDICATE_INFO_FILE)
 
