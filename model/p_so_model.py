@@ -446,7 +446,7 @@ class Trainer(object):
         lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=config.lr_T_max)
         
         # 保存模型的名字
-        model_name = '{}_wv{}_{}{}_'.format(config.from_pertrained, config.embedding_size, config.rnn_type, config.rnn_hidden_size)
+        model_name = '{}_wv{}_{}{}'.format(config.from_pertrained, config.embedding_size, config.rnn_type, config.rnn_hidden_size)
 
         for epoch in range(config.epoch):
             p_model.train()
@@ -880,7 +880,7 @@ def load_model_and_test(config: Config, device, best_f1: float=0.0):
     p_model.eval()
     so_model.eval()
 
-    model_name = '{}_wv{}_{}{}_'.format(config.from_pertrained, config.embedding_size, config.rnn_type, config.rnn_hidden_size)
+    model_name = '{}_wv{}_{}{}'.format(config.from_pertrained, config.embedding_size, config.rnn_type, config.rnn_hidden_size)
     embedding.load_state_dict(torch.load('{}/{}_p_so_embedding.pkl'.format(base_path, model_name), map_location=device))
     p_model.load_state_dict(torch.load('{}/{}_p_model.pkl'.format(base_path, model_name), map_location=device))
     so_model.load_state_dict(torch.load('{}/{}_so_model.pkl'.format(base_path, model_name), map_location=device))

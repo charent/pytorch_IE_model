@@ -454,7 +454,7 @@ class Trainer(object):
         loss_cpu = 0.0
 
         # 保存模型的名字
-        model_name = '{}_wv{}_{}{}_'.format(config.from_pertrained, config.embedding_size, config.rnn_type, config.rnn_hidden_size)
+        model_name = '{}_wv{}_{}{}'.format(config.from_pertrained, config.embedding_size, config.rnn_type, config.rnn_hidden_size)
 
         for epoch in range(config.epoch):
             sp_model.train()
@@ -864,7 +864,7 @@ def load_model_and_test(config: Config, device):
         device=device,
     ).to(device)
 
-    model_name = '{}_wv{}_{}{}_'.format(config.from_pertrained, config.embedding_size, config.rnn_type, config.rnn_hidden_size)
+    model_name = '{}_wv{}_{}{}'.format(config.from_pertrained, config.embedding_size, config.rnn_type, config.rnn_hidden_size)
 
     embedding.load_state_dict(torch.load('{}/{}_sp_o_embedding.pkl'.format(base_path, model_name), map_location='cuda:0'))
     sp_model.load_state_dict(torch.load('{}/{}_sp_model.pkl'.format(base_path, model_name), map_location='cuda:0'))

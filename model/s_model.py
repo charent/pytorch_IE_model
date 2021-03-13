@@ -27,7 +27,7 @@ log = Logger('s_model', std_out=False, save2file=True).get_logger()
 
 parent_path = abspath(dirname(dirname(__file__)))
 TRAIN_FILE = parent_path + '/data/my_train_data.json'
-DEV_FILE = parent_path + '/data/my_dev_data.json'
+TEST_FILE = parent_path + '/data/my_test_data.json'
 ID_PREDICATE_FILE = parent_path + '/data/id_and_predicate_no_unk.json'
 PREDICATE_INFO_FILE = parent_path + '/data/predicate_info.json'
 CHAR2ID_FILE = parent_path + '/data/char2id.json'
@@ -217,7 +217,7 @@ class Trainer(object):
         '''
         super().__init__()
         self.train_data = TextData(TRAIN_FILE, ID_PREDICATE_FILE)
-        self.dev_data = read_json(DEV_FILE)  # 评估数据直接用原始数据
+        self.dev_data = read_json(TEST_FILE)  # 评估数据直接用原始数据
 
         # 统一使用训练集的长度
         self.max_seq_len = self.train_data.max_seq_len
@@ -312,6 +312,9 @@ class Trainer(object):
         loss_sum = 0.0
         loss_cpu = 0.0
 
+        model_name = '{}_wv{}_{}{}'.format(config.from_pertrained, config.embedding_size, config.rnn_type, config.rnn_hidden_size)
+
+
         for epoch in range(config.epoch):
             s_model.train()
             log.info('epoch: {}, learning rate: {:.6f}, average loss: {:.6f}'.format(
@@ -389,9 +392,6 @@ class Trainer(object):
             s_model.eval()
             s_ema.apply_shadow()
 
-            torch.save(embedding.state_dict(), '{}/{}_s_embedding.pkl'.format(base_path, config.from_pertrained))
-            torch.save(s_model.state_dict(), '{}/{}_s_model.pkl'.format(base_path, config.from_pertrained))
-
             print('{}, evaluate epoch: {} ...'.format(get_formated_time(), epoch))
 
             with torch.no_grad():
@@ -409,8 +409,8 @@ class Trainer(object):
                 f1_not_up_count = 0
                 s_ema.save_best_params()
                 if config.from_pertrained not in ['bert', 'albert']:
-                    torch.save(embedding.state_dict(), '{}/{}_s_embedding.pkl'.format(base_path, config.from_pertrained))
-                torch.save(s_model.state_dict(), '{}/{}_s_model.pkl'.format(base_path, config.from_pertrained))
+                    torch.save(embedding.state_dict(), '{}/{}_s_embedding.pkl'.format(base_path, model_name))
+                torch.save(s_model.state_dict(), '{}/{}_s_model.pkl'.format(base_path, model_name))
             else:
                 f1_not_up_count += 1
                 if f1_not_up_count >= patience:
@@ -516,7 +516,7 @@ def compute_batch_subject(model: SubjectModel, embeddings: tuple, text: list, co
 
 def load_model_and_test(config: Config, device):
     base_path = parent_path + '/model_file'
-    dev_data = read_json(DEV_FILE) 
+    dev_data = read_json(TEST_FILE) 
 
     embedding = TorchEmbedding(config.embedding_size, device).to(device)
     position_embedding = PositionEmbedding(config.embedding_size).to(device)
@@ -531,8 +531,9 @@ def load_model_and_test(config: Config, device):
         device=device
     ).to(device)
 
-    embedding.load_state_dict(torch.load('{}/{}_s_embedding.pkl'.format(base_path, config.from_pertrained), map_location='cuda:0'))
-    s_model.load_state_dict(torch.load('{}/{}_s_model.pkl'.format(base_path, config.from_pertrained), map_location='cuda:0'))
+    model_name = '{}_wv{}_{}{}'.format(config.from_pertrained, config.embedding_size, config.rnn_type, config.rnn_hidden_size)
+    embedding.load_state_dict(torch.load('{}/{}_s_embedding.pkl'.format(base_path, model_name), map_location='cuda:0'))
+    s_model.load_state_dict(torch.load('{}/{}_s_model.pkl'.format(base_path, model_name), map_location='cuda:0'))
    
     s_model.eval()
    

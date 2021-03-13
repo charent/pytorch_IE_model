@@ -20,7 +20,7 @@ class Config(object):
     cuda_device_number = 0
 
     # 训练时，用前多少个epoch做warm up
-    warm_up_epoch = 2
+    warm_up_epoch = 1
 
     # output linear forward dim
     forward_dim = int(embedding_size * 2)

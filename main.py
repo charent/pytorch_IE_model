@@ -1,4 +1,5 @@
 import torch
+import sys
 import numpy as np
 from config import Config
 
@@ -13,8 +14,9 @@ torch.cuda.manual_seed_all(seed)
 
 if __name__ == "__main__":
 
+    # 设置默认为FloatTensor
     torch.set_default_tensor_type(torch.FloatTensor)
-    
+
     # 加载配置文件
     config = Config()
     
@@ -26,9 +28,18 @@ if __name__ == "__main__":
 
     print('device: {}'.format(device))
 
-    trainer = Trainer()
-    trainer.train(config, device)
+    args = sys.argv
+    mode = 'train'
+    if len(args) >= 2:
+        mode = args[1]
 
-    # 评估测试集的时候要关闭benchmark，否则会变慢
-    torch.backends.cudnn.benchmark = False
-    load_model_and_test(config, device)
+    print('mode={}'.format(mode))
+    
+    if mode == 'train':
+        trainer = Trainer()
+        trainer.train(config, device)
+
+    if mode == 'test':
+        # 评估测试集的时候要关闭benchmark，否则会变慢
+        torch.backends.cudnn.benchmark = False
+        load_model_and_test(config, device)
