@@ -53,13 +53,14 @@ class MultiheadAttentionEncoder(nn.Module):
         return query
 
 class RNNEncoder(nn.Module):
-    def __init__(self, embedding_dim: int, num_layers: int, hidden_size: int, rnn_type: str='gru'):
+    def __init__(self, embedding_dim: int, num_layers: int, hidden_size: int, rnn_type: str='gru', dropout_prob: float=0.1):
         '''
         rnn_type: 'lstm', 'rnn'
         '''
         super(RNNEncoder, self).__init__()
 
-        self.embedding_dim = embedding_dim
+        self.embedding_dropout = nn.Dropout(dropout_prob)
+        self.embedding_layer_norm = nn.LayerNorm((embedding_dim))
         
         if rnn_type == 'gru':
             self.rnn = nn.GRU(
@@ -85,12 +86,20 @@ class RNNEncoder(nn.Module):
             nn.ReLU(),
         )
 
-    def forward(self, input_embedding: Tensor, mask: Tensor):
+        self.out_layer_norm = nn.LayerNorm((embedding_dim))
+
+    def forward(self, input_embedding: Tensor, position_embedding: Tensor, mask: Tensor):
         '''
         '''
         self.rnn.flatten_parameters()
         
         max_seq_len = input_embedding.shape[1]
+
+        if position_embedding is not None:
+            input_embedding = input_embedding + position_embedding
+        
+        input_embedding = self.embedding_dropout(input_embedding)
+        input_embedding = self.embedding_layer_norm(input_embedding)
 
         # 长度应该是cpu上的向量
         input_lengths_cpu = torch.sum(mask, dim=1).cpu()
@@ -100,6 +109,8 @@ class RNNEncoder(nn.Module):
         out, _ = pad_packed_sequence(inputs, batch_first=True, total_length=max_seq_len)
 
         out = self.out_fc(out)
+
+        out = self.out_layer_norm(out + input_embedding + position_embedding)
 
         return out
 

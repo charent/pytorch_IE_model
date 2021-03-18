@@ -184,16 +184,13 @@ class SubjectPredicateModel(nn.Module):
         '''
         super(SubjectPredicateModel, self).__init__()
         
-        self.embedding_processor = EmbeddingProcessor(embedding_dim=embedding_size, dropout_prob=dropout_prob)
-
         self.embedding_encoder = RNNEncoder(
             embedding_dim=embedding_size,
             num_layers=2,
             rnn_type=rnn_type,
             hidden_size=rnn_hidden_size,
+            dropout_prob=dropout_prob,
         )
-
-        self.layernorm = nn.LayerNorm((embedding_size))
 
         self.attention = SelfAttention(
             embedding_dim=embedding_size,
@@ -225,17 +222,15 @@ class SubjectPredicateModel(nn.Module):
     def forward(self, input_embedding: Tensor, mask: Tensor, position_embedding: Tensor):
         '''
         '''
-        input_embedding = self.embedding_processor(input_embedding, position_embedding)
 
         share_feature = self.embedding_encoder(
             input_embedding=input_embedding,
+            position_embedding=position_embedding,
             mask=mask,
         )
 
-        share_feature = self.layernorm(share_feature + position_embedding)
-
         #===========================================================================================#
-        # cnn_outs = self.cnn(share_feature, mask)
+
         outs, _ = self.attention(
             inputs=share_feature,
             mask=mask,
@@ -253,16 +248,12 @@ class ObjectModel(nn.Module):
         '''
         super(ObjectModel, self).__init__()
 
-        self.embedding_processor = EmbeddingProcessor(embedding_dim=embedding_size, dropout_prob=0.1)
-
         self.embedding_encoder = RNNEncoder(
             embedding_dim=embedding_size,
             num_layers=2,
             rnn_type=rnn_type,
             hidden_size=rnn_hidden_size,
         )
-
-        self.layernorm = nn.LayerNorm((embedding_size))
 
         self.multi_head_attention = MultiHeadAttention(
             embedding_dim=embedding_size,
@@ -294,15 +285,12 @@ class ObjectModel(nn.Module):
     def forward(self, share_feature: Tensor, share_mask: Tensor, query_embedding: Tensor, query_mask: Tensor, query_pos_embedding: Tensor):
         '''
         '''
-        query_embedding = self.embedding_processor(query_embedding, query_pos_embedding)
 
         rnn_out = self.embedding_encoder(
             input_embedding=query_embedding,
+            position_embedding=query_pos_embedding,
             mask=query_mask,
         )
-        rnn_out = self.layernorm( rnn_out + query_embedding + query_pos_embedding)
-        
-        # cnn_outs = self.cnn(rnn_out, query_mask)
 
         outs, _ = self.multi_head_attention(
             query=share_feature,

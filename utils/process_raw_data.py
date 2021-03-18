@@ -185,7 +185,7 @@ def process_spo_list(text: str, spo_list: list, repair_song: bool=False):
     return new_spo_list
 
 
-def process_train_data(path: str, save_file_name: str, all_chars: set, test_file_name: str=None, keep_max_length: int=300, repair_song: bool=False):
+def process_data(path: str, save_file_name: str, all_chars: set, dev_file_name: str=None, keep_max_length: int=300, repair_song: bool=False):
     lines = read_all_lines(path)
     my_raw_data = []
 
@@ -212,7 +212,7 @@ def process_train_data(path: str, save_file_name: str, all_chars: set, test_file
     log.info('处理后的总行数:{}，丢掉{}条在句子中找不到实体、长度太长数据'.format(len(my_raw_data),  len(lines) - len(my_raw_data) ))
     count_len(my_raw_data)
 
-    if test_file_name is not None:
+    if dev_file_name is not None:
         dev_index = np.random.choice(range(0, len(my_raw_data)), size=DEV_SIZE, replace=False)
         dev_index = set(dev_index)
         assert len(dev_index) == DEV_SIZE
@@ -220,7 +220,7 @@ def process_train_data(path: str, save_file_name: str, all_chars: set, test_file
         train_data = [x for i, x in enumerate(my_raw_data) if i not in dev_index]
         dev_date = [x for i, x in enumerate(my_raw_data) if i in dev_index]
         
-        with codecs.open(parent_path + test_file_name, 'w', encoding='utf-8') as f:
+        with codecs.open(parent_path + dev_file_name, 'w', encoding='utf-8') as f:
             ujson.dump(dev_date, f, indent=4, ensure_ascii=False)
         
         my_raw_data = train_data
@@ -257,10 +257,11 @@ if __name__ == "__main__":
 
     max_seq_len = 200
     repair_song = False
+    dev_file_name='my_dev_data.json'
 
-    process_train_data(TRAIN_FILE, 'my_train_data.json', test_file_name='my_dev_data.json', all_chars=all_chars, \
+    process_data(TRAIN_FILE, 'my_train_data.json', dev_file_name=dev_file_name, all_chars=all_chars, \
         keep_max_length=max_seq_len, repair_song=repair_song)
-    process_train_data(DEV_FILE, 'my_test_data.json', all_chars, keep_max_length=max_seq_len, repair_song=repair_song)
+    process_data(DEV_FILE, 'my_test_data.json', all_chars, keep_max_length=max_seq_len, repair_song=repair_song)
   
     all_chars = list(all_chars)
     all_chars.sort()
@@ -277,6 +278,6 @@ if __name__ == "__main__":
     # merge_all_chars()
 
     # # test:
-    # process_train_data(BASE_DIR + 'train_data_sample.json', 'my_train_data.json')
-    # process_train_data(BASE_DIR + 'dev_data_sample.json', 'my_dev_data.json')
+    # process_data(BASE_DIR + 'train_data_sample.json', 'my_train_data.json')
+    # process_data(BASE_DIR + 'dev_data_sample.json', 'my_dev_data.json')
 

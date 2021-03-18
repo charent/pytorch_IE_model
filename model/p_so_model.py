@@ -188,13 +188,12 @@ class PredicateModel(nn.Module):
         '''
         super(PredicateModel, self).__init__()
 
-        self.embedding_processor = EmbeddingProcessor(embedding_dim=embedding_size, dropout_prob=dropout_prob)
-
         self.embedding_encoder = RNNEncoder(
             embedding_dim=embedding_size,
             hidden_size=rnn_hidden_size,
             num_layers=2,
             rnn_type=rnn_type,
+            dropout_prob=dropout_prob,
         )
 
         self.self_attention = SelfAttention(
@@ -202,8 +201,6 @@ class PredicateModel(nn.Module):
             num_heads=num_heads,
             device=device,
         )
-
-        self.layernorm = nn.LayerNorm((embedding_size))
 
         d = [1, 2, 3, 1, 2, 3]
         k = [5, 5, 5, 3, 3, 3]
@@ -223,13 +220,12 @@ class PredicateModel(nn.Module):
     def forward(self, input_embedding: Tensor, mask: Tensor, position_embedding: Tensor):
         '''
         '''
-        input_embedding = self.embedding_processor(input_embedding, position_embedding)
 
         share_feature = self.embedding_encoder(
             input_embedding=input_embedding,
+            position_embedding=position_embedding,
             mask=mask,
         )
-        share_feature = self.layernorm(share_feature + position_embedding)
 
         #===========================================================================================#
 
@@ -255,16 +251,13 @@ class SubjectObjectModel(nn.Module):
         '''
         super(SubjectObjectModel, self).__init__()
 
-        self.embedding_processor = EmbeddingProcessor(embedding_dim=embedding_size, dropout_prob=dropout_prob)
-
         self.embedding_encoder = RNNEncoder(
             embedding_dim=embedding_size,
             hidden_size=rnn_hidden_size,
             num_layers=2,
             rnn_type=rnn_type,
+            dropout_prob=dropout_prob,
         )
-
-        self.layernorm = nn.LayerNorm((embedding_size))
 
         self.multi_head_attention = MultiHeadAttention(
             embedding_dim=embedding_size,
@@ -309,13 +302,12 @@ class SubjectObjectModel(nn.Module):
     def forward(self, share_feature: Tensor, share_mask: Tensor, query_embedding: Tensor, query_mask: Tensor, query_pos_embedding: Tensor):
         '''
         '''
-        query_embedding = self.embedding_processor(query_embedding, query_pos_embedding)
 
         rnn_out = self.embedding_encoder(
             input_embedding=query_embedding,
+            position_embedding=query_embedding,
             mask=query_mask,
         )
-        rnn_out = self.layernorm( rnn_out + query_embedding + query_pos_embedding)
 
         att_out, _ = self.multi_head_attention(
             query=share_feature,
