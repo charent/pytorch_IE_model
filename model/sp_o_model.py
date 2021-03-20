@@ -115,7 +115,13 @@ class SpoDataset(Dataset):
         
         text = self.text[index]
         spo_list = self.spo_list[index]
-        choice_index = self.choice_index[index]
+
+        # 一个sp作为o模型的输入
+        # 固定采样
+        # choice_index = self.choice_index[index]
+        
+        # 训练时随机采样
+        choice_index = randint(low=0, high=len(spo_list))
 
         max_len = self.max_seq_len
         preidcate2id = self.predicate2id
@@ -342,7 +348,7 @@ class Trainer(object):
             pin_memory=True,
         )
 
-        # 报存模型的路径
+        # 预训练的路径
         base_path = parent_path + '/model_file'
         pertrain_file = base_path + '/pertrain/merge_sgns_bigram_char300.npy'
 

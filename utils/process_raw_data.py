@@ -257,7 +257,7 @@ if __name__ == "__main__":
 
     max_seq_len = 200
     repair_song = False
-    dev_file_name='my_dev_data.json'
+    dev_file_name = 'my_dev_data.json'
 
     process_data(TRAIN_FILE, 'my_train_data.json', dev_file_name=dev_file_name, all_chars=all_chars, \
         keep_max_length=max_seq_len, repair_song=repair_song)
