@@ -154,7 +154,6 @@ class SpoDataset(Dataset):
 def collate_fn(data):
     '''
     '''
-    array = np.array
     
     lens = [item[6] for item in data]
     max_len = max(lens)
@@ -312,7 +311,7 @@ class ObjectModel(nn.Module):
 
         return object_start, object_end
 
-# ======================================================================= end model ======================================================================#
+# ==================================================== end model ========================================================#
 
 class Trainer(object):
     def __init__(self):
@@ -694,7 +693,7 @@ def compute_batch_spo(models: tuple, embeddings: tuple, text: list, predicate_in
     batch_o_query_text = []
     batch_ids = []
 
-    # 抽取一个批次的po
+    # 抽取一个批次的sp
     for bs_id, (share_feature, share_mask, sp_start_pred, sp_end_pred) in enumerate(zip(share_features, share_masks, sp_start_preds, sp_end_preds)):
         text_ = text[bs_id]
         sp_start = np.where(sp_start_pred[0: len(text_)] >= 0.4)
@@ -725,7 +724,7 @@ def compute_batch_spo(models: tuple, embeddings: tuple, text: list, predicate_in
     max_seq_len = share_features.shape[1]
     embedding_dim = share_features.shape[2]
 
-    # 对一个batch中抽取到的所有po抽取s
+    # 对一个batch中抽取到的所有sp抽取o
     for _ in range(n):
         end = last_start + batch_size
 
@@ -747,7 +746,7 @@ def compute_batch_spo(models: tuple, embeddings: tuple, text: list, predicate_in
         )
 
         for bs_id, sp, o_start_pred, o_end_pred in zip(batch_ids[last_start: end], batch_sp[last_start: end], o_start_preds, o_end_preds):
-            # 可能有多个s
+            # 可能有多个o
             text_ = text[bs_id]
             o_start = o_start_pred[0: len(text_)]
             o_end = o_end_pred[0: len(text_)]
