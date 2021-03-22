@@ -3,7 +3,7 @@ transformers==4.1.1
 numpy==1.19.5
 colorlog==4.6.2
 gensim==3.8.3
-torch==1.7.0
+torch==1.8.0
 tqdm==4.55.1
 ujson==4.0.1
 matplotlib==3.3.3

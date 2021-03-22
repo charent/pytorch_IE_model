@@ -819,8 +819,8 @@ def compute_o(o_model: ObjectModel, embeddings: tuple, share_feature: Tensor, sh
     o_end_pred = torch.squeeze(o_end_pred, dim=2)
 
     if config.from_pertrained in ['bert', 'albert']:
-        o_start_pred = o_start_pred[:, :, 1: - 1]
-        o_end_pred = o_end_pred[:, :, 1: - 1]
+        o_start_pred = o_start_pred[:, 1: - 1]
+        o_end_pred = o_end_pred[:, 1: - 1]
 
     o_start_pred = sigmoid(o_start_pred).cpu().detach().numpy()
     o_end_pred = sigmoid(o_end_pred).cpu().detach().numpy()
