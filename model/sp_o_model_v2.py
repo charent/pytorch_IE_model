@@ -553,10 +553,6 @@ class Trainer(object):
 
             print('{}, evaluate epoch: {} ...'.format(get_formated_time(), epoch))
 
-            torch.save(embedding.state_dict(), '{}/{}_sp_o_embedding_v2.pkl'.format(base_path, model_name))
-            torch.save(sp_model.state_dict(), '{}/{}_sp_model_v2.pkl'.format(base_path, model_name))
-            torch.save(o_model.state_dict(), '{}/{}_o_model_v2.pkl'.format(base_path, model_name))
-
             with torch.no_grad():
                 f1, precision, recall, _ = evaluate(
                     models=(sp_model, o_model),
@@ -690,11 +686,11 @@ def compute_batch_spo(models: tuple, embeddings: tuple, text: list, predicate_in
     # 抽取一个批次的sp
     for bs_id, (share_feature, share_mask, sp_start_pred, sp_end_pred) in enumerate(zip(share_features, share_masks, sp_start_preds, sp_end_preds)):
         text_ = text[bs_id]
-        sp_start = np.argmax(sp_start_pred[0: len(text_)])
-        sp_end = np.argmax(sp_end_pred[0: len(text_)])
+        sp_start = np.argmax(sp_start_pred[0: len(text_)], axis=-1)
+        sp_end = np.argmax(sp_end_pred[0: len(text_)], axis=-1)
         sp_start = np.where(sp_start == 1)
-        sp_start = np.where(sp_end == 1)
-
+        sp_end = np.where(sp_end == 1)
+        
         for s_start, s_p_id in zip(*sp_start):
             for s_end, e_p_id in zip(*sp_end):
                 if s_start <= s_end and s_p_id == e_p_id:
@@ -745,8 +741,8 @@ def compute_batch_spo(models: tuple, embeddings: tuple, text: list, predicate_in
         for bs_id, sp, o_start_pred, o_end_pred in zip(batch_ids[last_start: end], batch_sp[last_start: end], o_start_preds, o_end_preds):
             # 可能有多个o
             text_ = text[bs_id]
-            o_start = np.argmax(o_start_pred[0: len(text_)])
-            o_end =  np.argmax(o_end_pred[0: len(text_)])
+            o_start = np.argmax(o_start_pred[0: len(text_)], axis=-1)
+            o_end =  np.argmax(o_end_pred[0: len(text_)], axis=-1)
 
             for i, o_s in enumerate(o_start):
                 if o_s == 1:
