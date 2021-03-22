@@ -14,7 +14,7 @@ class Config(object):
     log_loss = False
 
     # 最后一个epoch的学习率衰减为初始学习率的 1 / 10 （大约）
-    lr_T_max = int(epoch * 0.2)
+    lr_T_max = int(epoch * 0.1)
 
     embedding_size = 128
     cuda_device_number = 0

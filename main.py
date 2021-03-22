@@ -4,8 +4,8 @@ import numpy as np
 from config import Config
 
 # from model.p_so_model import Trainer, load_model_and_test
-# from model.sp_o_model import Trainer, load_model_and_test
-from model.sp_o_model_v2 import Trainer, load_model_and_test
+from model.sp_o_model import Trainer, load_model_and_test
+# from model.sp_o_model_v2 import Trainer, load_model_and_test
 # from model.s_model import Trainer, load_model_and_test
 
 seed = 233

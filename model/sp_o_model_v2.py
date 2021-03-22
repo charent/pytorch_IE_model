@@ -27,7 +27,7 @@ log = Logger('sp_o_model_v2', std_out=False, save2file=True).get_logger()
 
 parent_path = abspath(dirname(dirname(__file__)))
 TRAIN_FILE = parent_path + '/data/my_train_data.json'
-DEV_FILE = parent_path + '/data/my_dev_data.json'
+DEV_FILE = parent_path + '/data/my_test_data.json'
 TEST_FILE = parent_path + '/data/my_test_data.json'
 ID_PREDICATE_FILE = parent_path + '/data/id_and_predicate_no_unk.json'
 PREDICATE_INFO_FILE = parent_path + '/data/predicate_info.json'
@@ -850,9 +850,9 @@ def load_model_and_test(config: Config, device):
 
     model_name = '{}_wv{}_{}{}'.format(config.from_pertrained, config.embedding_size, config.rnn_type, config.rnn_hidden_size)
 
-    embedding.load_state_dict(torch.load('{}/{}_sp_o_embedding_v2.pkl'.format(base_path, model_name), map_location='cuda:0'))
-    sp_model.load_state_dict(torch.load('{}/{}_sp_model_v2.pkl'.format(base_path, model_name), map_location='cuda:0'))
-    o_model.load_state_dict(torch.load('{}/{}_o_model_v2.pkl'.format(base_path, model_name), map_location='cuda:0'))
+    embedding.load_state_dict(torch.load('{}/{}_sp_o_embedding_ce.pkl'.format(base_path, model_name), map_location='cuda:0'))
+    sp_model.load_state_dict(torch.load('{}/{}_sp_model_ce.pkl'.format(base_path, model_name), map_location='cuda:0'))
+    o_model.load_state_dict(torch.load('{}/{}_o_model_ce.pkl'.format(base_path, model_name), map_location='cuda:0'))
 
     sp_model.eval()
     o_model.eval()

@@ -56,58 +56,19 @@ class TextData(object):
 
     def __process_data(self, raw_data: list):
         text = []
-        p_labels = []
-        so_q_text = []
-        s_start = []
-        s_end = []
-        o_start = []
-        o_end = []
-
-        num_predicate = self.num_predicate
-        predicate2id = self.predicate2id
-        max_seq_len = self.max_seq_len
+        spo_list = []
+        choice_index = []
+ 
 
         print('process data ...')
         for data in raw_data:
             text.append(data['text'])
-            spo_list = data['spo_list']
-            
-            p_label = np.zeros((num_predicate, ), dtype=np.float32)
-            subject_start = np.zeros((max_seq_len, ), dtype=np.float32)
-            subject_end = np.zeros((max_seq_len, ), dtype=np.float32)
-
-            object_start = np.zeros((max_seq_len, ), dtype=np.float32)
-            object_end = np.zeros((max_seq_len, ), dtype=np.float32)
-
-            # 随机采样一个spo_list中的predicate作为so模型的输入
-            choice_index = randint(low=0, high=len(spo_list))
-            spo_choose = spo_list[choice_index]
-            p_choose = spo_choose['predicate']
-
-            # so模型查询输入
-            p_info = self.predicate_info[p_choose]
-            so_query_text = '{}，{}，{}。{}'.format(p_info['s_type'], p_choose, p_info['o_type'], data['text'])
-
-            for spo in spo_list:
-                predicate_id = predicate2id[spo['predicate']]
-                p_label[predicate_id] = 1.0
-
-                if spo['predicate'] == p_choose:
-                    subject_start[spo['subject_start']] = 1.0
-                    subject_end[spo['subject_end'] - 1] = 1.0
-
-                    object_start[spo['object_start']] = 1.0
-                    object_end[spo['object_end'] - 1] = 1.0
-            
-            p_labels.append(p_label)
-            so_q_text.append(so_query_text)
-            s_start.append(subject_start)
-            s_end.append(subject_end)
-            o_start.append(object_start)
-            o_end.append(object_end)
+            spo_list.append(data['spo_list'])
            
+            # 随机采样一个spo_list中的predicate作为so模型的输入
+            choice_index.append(randint(low=0, high=len(data['spo_list'])))
 
-        return (text, p_labels, so_q_text, s_start, s_end, o_start, o_end)
+        return (text, spo_list, choice_index)
 
     def __compute_max_len(self, raw_data: list):
         max_seq_len = 0
@@ -122,15 +83,11 @@ class TextData(object):
 class SpoDataset(Dataset):
     def __init__(self, inputs_outputs: list, predicate_info: dict, predicate2id: dict, max_seq_len: int):
         super(SpoDataset, self).__init__()
-        text, p_labels, so_q_text, s_start, s_end, o_start, o_end = inputs_outputs
+        text, spo_list, choice_index = inputs_outputs
 
         self.text = text
-        self.predicate_labels = p_labels
-        self.so_query_text = so_q_text
-        self.subject_start = s_start
-        self.subject_end = s_end
-        self.object_start = o_start
-        self.object_end = o_end
+        self.spo_list = spo_list
+        self.choice_index = choice_index
 
         self.predicate2id = predicate2id
         self.max_seq_len = max_seq_len
@@ -140,10 +97,35 @@ class SpoDataset(Dataset):
         self.len = len(text)
 
     def __getitem__(self, index):
-        text = self.text[index]
 
-        return text, self.predicate_labels[index], self.so_query_text[index], \
-        self.subject_start[index], self.subject_end[index], self.object_start[index], self.object_end[index], len(text)
+        text = self.text[index]
+        spo_list = self.spo_list[index]
+
+        choice_index = self.choice_index[index]
+        spo_choose = spo_list[choice_index]
+        p_choose = spo_choose['predicate']
+
+        p_label = [0.0] * self.num_predicate
+        subject_start = [0.0] * self.max_seq_len
+        subject_end = [0.0] * self.max_seq_len
+        object_start = [0.0] * self.max_seq_len
+        object_end = [0.0] * self.max_seq_len
+
+        p_info = self.predicate_info[p_choose]
+        so_query_text = '{}，{}，{}。{}'.format(p_info['s_type'], p_choose, p_info['o_type'], text)
+
+        for spo in spo_list:
+            predicate_id = self.predicate2id[spo['predicate']]
+            p_label[predicate_id] = 1.0
+
+            if spo['predicate'] == p_choose:
+                subject_start[spo['subject_start']] = 1.0
+                subject_end[spo['subject_end'] - 1] = 1.0
+
+                object_start[spo['object_start']] = 1.0
+                object_end[spo['object_end'] - 1] = 1.0
+
+        return text, p_label, so_query_text, subject_start, subject_end, object_start, object_end, len(text)
 
     def __len__(self):
         return self.len
@@ -151,31 +133,30 @@ class SpoDataset(Dataset):
 def collate_fn(data):
     '''
     '''
-    array = np.array
     
     lens = [item[7] for item in data]
     max_len = max(lens)
 
     text = [item[0] for item in data]
-    predicate_label = array([item[1] for item in data])
+    predicate_label = [item[1] for item in data]
 
     so_query_text = [item[2] for item in data]
 
-    subject_start = array([item[3] for item in data])[:, 0: max_len]
-    subject_end = array([item[4] for item in data])[:, 0: max_len]
-    object_start = array([item[5] for item in data])[:, 0: max_len]
-    object_end = array([item[6] for item in data])[:, 0: max_len]
+    subject_start = [item[3][0: max_len] for item in data]
+    subject_end = [item[4][0: max_len] for item in data]
+    object_start = [item[5][0: max_len] for item in data]
+    object_end = [item[6][0: max_len] for item in data]
 
-    from_numpy = torch.from_numpy
+    as_tensor = torch.as_tensor
 
     ret = {
         'text': text,
-        'predicate_label': from_numpy(predicate_label),
+        'predicate_label': as_tensor(predicate_label),
         'so_query_text': so_query_text,
-        'subject_start': from_numpy(subject_start),
-        'subject_end': from_numpy(subject_end),
-        'object_start': from_numpy(object_start),
-        'object_end': from_numpy(object_end),
+        'subject_start': as_tensor(subject_start),
+        'subject_end': as_tensor(subject_end),
+        'object_start': as_tensor(object_start),
+        'object_end': as_tensor(object_end),
     }
 
     return ret 
@@ -464,7 +445,6 @@ class Trainer(object):
                     s_end_true = inputs_outputs['subject_end'].to(device)
                     o_start_true = inputs_outputs['object_start'].to(device)
                     o_end_true = inputs_outputs['object_end'].to(device)
-                    
 
                     # 字符转向量
                     if config.from_pertrained in ['bert', 'albert']:
