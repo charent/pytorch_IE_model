@@ -16,7 +16,7 @@ BERT_VOCAB = TORCH_BERT_DIR + '/vocab.txt'
 
 # 位置编码
 class PositionEmbedding(nn.Module):
-    def __init__(self, embedding_size: int, max_seq_len: int = 512):
+    def __init__(self, embedding_size: int, max_seq_len: int = 300):
         '''
         位置编码层，该层没有要训练的参数
         max_sep_len: 句子的最大长度，或者对齐（padding）的长度

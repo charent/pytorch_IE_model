@@ -453,7 +453,7 @@ class Trainer(object):
             sp_model.train()
             o_model.train()
             
-            log.info('epoch: {}, learning rate: {:.6f}, average loss: {:.6f}'.format(
+            log.info('epoch: {}, learning rate: {:.6f}, average batch loss: {:.6f}'.format(
                 epoch, optimizer.state_dict()['param_groups'][0]['lr'], loss_sum / steps
                 )
             )
@@ -708,7 +708,7 @@ def compute_batch_spo(models: tuple, embeddings: tuple, text: list, predicate_in
                     p_info = predicate_info[predicate]
                     o_query_text = '{}，{}，{}，{}。{}'.format(p_info['s_type'], subject, predicate, p_info['o_type'], text_)
 
-                    batch_ids.append(bs_id)     # 记录po是那一条text的
+                    batch_ids.append(bs_id)     # 记录sp是那一条text的
                     batch_sp.append((subject, predicate))
                     batch_share_feature.append(share_feature)
                     batch_mask.append(share_mask)
