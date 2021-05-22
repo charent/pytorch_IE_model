@@ -27,11 +27,15 @@ python ./utils/pertrain_to_numpy.py
 ```bash
 # 先处理数据
 python ./utils/process_raw_data.py
+
 # 修改config配置
 vi config.py
+
 # 修改main.py确定运行哪个框架
 vi main.py
-# 运行
-python main.py
+
+# 运行, main.py的第一个参数可以是`train_sp_o`、`train_p_so`、`test_sp_o`、`test_p_so`
+# 分别表示：训练sp_o模型、训练p_so模型、测试sp_o模型、测试p_so模型
+python main.py train_sp_o
     
 ```

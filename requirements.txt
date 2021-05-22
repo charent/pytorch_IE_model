@@ -2,6 +2,7 @@ transformers==4.1.1
 # pytorch_transformers==1.2.0
 numpy==1.19.5
 colorlog==4.6.2
+fire==0.4.0
 gensim==3.8.3
 torch==1.8.0
 tqdm==4.55.1
