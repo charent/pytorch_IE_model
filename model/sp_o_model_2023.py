@@ -387,7 +387,7 @@ class Trainer(object):
 
         position_embedding = PositionEmbedding(config.embedding_size).to(device)
         
-        # 可学习的位置embedding
+        # 可学习的动态位置编码
         # position_embedding = DynamicPositionEmbedding(config.embedding_size).to(device)
 
         sp_model = SubjectPredicateModel(
@@ -424,6 +424,9 @@ class Trainer(object):
         if config.from_pertrained not in ['bert', 'albert']:
             params.extend(get_models_parameters([embedding], weight_decay=0.0))
         params.extend(get_models_parameters(model_list=[sp_model, o_model], weight_decay=0.0))
+
+        # 动态位置编码
+        # params.extend(get_models_parameters(model_list=[sp_model, o_model, position_embedding], weight_decay=0.0))
         
 
         # 优化器
