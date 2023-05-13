@@ -16,7 +16,7 @@ class Config(object):
     # 最后一个epoch的学习率衰减为初始学习率的 1 / 10 （大约）
     lr_T_max = int(epoch * 0.1)
 
-    embedding_size = 128
+    embedding_size = 256
     cuda_device_number = 0
 
     # 训练时，用前多少个epoch做warm up

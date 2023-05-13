@@ -12,6 +12,9 @@ class SelfAttentionEncoder(nn.Module):
     def __init__(self, embedding_dim: int, num_heads: int, num_layers: int, dropout_prob: float=0.0, device: str='cuda'):
         super(SelfAttentionEncoder, self).__init__()
 
+        self.num_layers = num_layers
+
+        # 注意力层
         self.attention_list = nn.ModuleList()
         for _ in range(num_layers):
             self.attention_list.append(
@@ -23,10 +26,40 @@ class SelfAttentionEncoder(nn.Module):
                 )
             )
 
-    def forward(self, inputs: Tensor, mask: Tensor=None):
+        # 全连接层
+        self.fc_list = nn.ModuleList()
+        for _ in range(num_layers):
+            self.fc_list.append(
+                nn.Sequential(
+                    nn.Linear(embedding_dim, embedding_dim),
+                    nn.ReLU(),
+                )
+            )
         
-        for attention in self.attention_list:
-            inputs, _ = attention(inputs, mask)
+        # layerNorm层
+        self.ln_list = nn.ModuleList()
+        for _ in range(num_layers * 2):
+           self.ln_list.append(
+               nn.LayerNorm((embedding_dim))
+           )
+
+
+    def forward(self, inputs: Tensor, mask: Tensor=None):
+
+        half = int(self.num_layers / 2)
+        
+        for i in range(self.num_layers):
+
+            att_outs, _ = self.attention_list[i](inputs, mask)
+
+            # add and layer norm
+            inputs = self.ln_list[i](att_outs + inputs)
+
+            # 全连接
+            fc_outs = self.fc_list[i](inputs)
+
+            # add & layer norn
+            inputs = self.ln_list[half + i](fc_outs + inputs)
 
         return inputs
 
@@ -124,8 +157,9 @@ if __name__ == '__main__':
         pos = torch.randn((2, 3, 4))
         mask = torch.FloatTensor([[1,1,0],[1,1,1]])
 
-        model = RNNEncoder(embedding_dim=4, num_layers=2, hidden_size=4, rnn_type='lstm')
-        
+        # model = RNNEncoder(embedding_dim=4, num_layers=2, hidden_size=4, rnn_type='lstm')
+        model = SelfAttentionEncoder(embedding_dim=4,num_heads=2,num_layers=3,dropout_prob=0.1,device='cpu')
+        # out = model(x, mask)
         out = model(x, mask)
         print(out.shape)
         print(out)

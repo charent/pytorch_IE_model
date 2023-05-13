@@ -549,9 +549,9 @@ class Trainer(object):
                 best_epoch = epoch
                 f1_not_up_count = 0
                 if config.from_pertrained not in ['bert', 'albert']:
-                    torch.save(embedding.state_dict(), '{}/{}_p_so_embedding.pkl'.format(model_path,model_name))
-                torch.save(p_model.state_dict(), '{}/{}_p_model.pkl'.format(model_path, model_name))
-                torch.save(so_model.state_dict(), '{}/{}_so_model.pkl'.format(model_path, model_name))
+                    torch.save(embedding.state_dict(), '{}/{}_p_so_embedding.22.pkl'.format(model_path,model_name))
+                torch.save(p_model.state_dict(), '{}/{}_p_model.22.pkl'.format(model_path, model_name))
+                torch.save(so_model.state_dict(), '{}/{}_so_model.22.pkl'.format(model_path, model_name))
             else:
                 f1_not_up_count += 1
                 if f1_not_up_count >= patience:
@@ -853,9 +853,9 @@ def load_model_and_test(config: Config, device, best_f1: float=0.0):
     so_model.eval()
 
     model_name = '{}_wv{}_{}{}'.format(config.from_pertrained, config.embedding_size, config.rnn_type, config.rnn_hidden_size)
-    embedding.load_state_dict(torch.load('{}/{}_p_so_embedding.pkl'.format(base_path, model_name), map_location=device))
-    p_model.load_state_dict(torch.load('{}/{}_p_model.pkl'.format(base_path, model_name), map_location=device))
-    so_model.load_state_dict(torch.load('{}/{}_so_model.pkl'.format(base_path, model_name), map_location=device))
+    embedding.load_state_dict(torch.load('{}/{}_p_so_embedding.22.pkl'.format(base_path, model_name), map_location=device))
+    p_model.load_state_dict(torch.load('{}/{}_p_model.22.pkl'.format(base_path, model_name), map_location=device))
+    so_model.load_state_dict(torch.load('{}/{}_so_model.22.pkl'.format(base_path, model_name), map_location=device))
 
     with torch.no_grad():
         f1, precision, recall, (spo_list_pred, spo_list_true) = evaluate(

@@ -76,6 +76,58 @@ class PositionEmbedding(nn.Module):
         
         return outputs
 
+# 位置编码
+class DynamicPositionEmbedding(nn.Module):
+    def __init__(self, embedding_size: int, max_seq_len: int=512, device: str='cuda'):
+        '''
+        动态位置编码层，该层没有要训练的参数
+        max_sep_len: 句子的最大长度，或者对齐（padding）的长度
+        embedding_size： 一个词对应的词向量大小
+        '''
+        super(DynamicPositionEmbedding, self).__init__()
+
+        # num_embeddings= max_sep_len + 1, +1是因为添加了一个填充字符的编码
+        # embedding_dim= embedding_size
+        self.position_embedding = nn.Embedding(
+                num_embeddings=max_seq_len + 1,
+                embedding_dim=embedding_size,
+                padding_idx=0,  # 填充的id是0
+            ).to(device)
+        
+        self.max_seq_len = max_seq_len
+
+    def forward(self, sequence_len, is_mask: bool = False, max_len: int=None):
+        '''
+        is_mask = False:
+            sequence_len: [batch_size,], int or long, 一个batch中每个句子的真实长度，不包括填充的长度
+            如：[1,5,7]
+        
+        设置is_mask = True表示传入的sequence_len是mask
+        is_maks = True:
+            sequence_len: [batch_size, padded_len or max_seq_len]
+            如：[[1, 1, 0],[1, 0, 0]]
+        '''
+        mask = None
+        if is_mask:
+            mask = sequence_len
+            sequence_len = torch.sum(sequence_len, dim=1, keepdim=True, dtype=torch.long)
+        
+        if max_len is None:
+            max_len = torch.max(sequence_len)
+
+        # range从1开始是因为embedding[0]放置的是pad的位置向量
+        sequence_len_cpu = sequence_len.cpu().detach().numpy()
+        input_id = [list(range(1, seq_len + 1)) + [0] * (max_len - seq_len) for seq_len in sequence_len_cpu]
+        input_id = torch.LongTensor(input_id).to(sequence_len.device)
+        
+        outputs = self.position_embedding(input_id)
+
+        if is_mask:
+            mask = torch.unsqueeze(mask, dim=2)
+            outputs = torch.mul(outputs, mask)
+        
+        return outputs
+
 class TorchEmbedding(nn.Module):
     def __init__(self, embedding_size: int, device: str='cuda', char2id_file: str=CHAR2ID_FILE, from_pertrain: str=None):
         '''

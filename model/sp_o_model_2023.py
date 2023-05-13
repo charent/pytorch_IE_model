@@ -14,16 +14,16 @@ sys.path.append('..')
 sys.path.append('.')
 from utils.function import *
 from utils.logger import Logger
-from embedding.torchEmbedding import TorchEmbedding, PositionEmbedding, EmbeddingProcessor
+from embedding.torchEmbedding import TorchEmbedding, PositionEmbedding, DynamicPositionEmbedding
 from embedding.AlbertEmbedding import AlbertEmbedding
 from model.attention import SelfAttention, MultiHeadAttention
-from model.loss_function import DynamicFocalLossBCE, FocalLossBCE
+from model.loss_function import FocalLossBCE
 from model.Decoder import DGCNNDecoder
-from model.Encoder import RNNEncoder
+from model.Encoder import SelfAttentionEncoder
 from model.model_utils import EMA
 from config import Config
 
-log = Logger('sp_o_model', std_out=False, save2file=True).get_logger()
+log = Logger('sp_o_model_2023', std_out=False, save2file=True).get_logger()
 
 parent_path = abspath(dirname(dirname(__file__)))
 TRAIN_FILE = parent_path + '/data/my_train_data.json'
@@ -182,20 +182,22 @@ def collate_fn(data):
 
 # 预测主实体和关系的模型
 class SubjectPredicateModel(nn.Module):
-    def __init__(self, embedding_size: int, num_predicate: int, num_heads: int, rnn_type: str, rnn_hidden_size: int, forward_dim: int, device: str='cuda', dropout_prob: float=0.1):
+    def __init__(self, embedding_size: int, num_predicate: int, num_heads: int, forward_dim: int, device: str='cuda', dropout_prob: float=0.1):
         '''
         embedding_size： 词向量的大小
         num_predicate: 模型要预测的关系总数
         '''
         super(SubjectPredicateModel, self).__init__()
         
-        self.embedding_encoder = RNNEncoder(
+        self.embedding_encoder = SelfAttentionEncoder(
             embedding_dim=embedding_size,
-            num_layers=2,
-            rnn_type=rnn_type,
-            hidden_size=rnn_hidden_size,
+            num_heads=num_heads,
+            num_layers=6,
             dropout_prob=dropout_prob,
         )
+
+        self.embedding_dropout = nn.Dropout(dropout_prob)
+        self.embedding_layer_norm = nn.LayerNorm((embedding_size))
 
         self.attention = SelfAttention(
             embedding_dim=embedding_size,
@@ -227,10 +229,14 @@ class SubjectPredicateModel(nn.Module):
     def forward(self, input_embedding: Tensor, mask: Tensor, position_embedding: Tensor):
         '''
         '''
+        if position_embedding is not None:
+            input_embedding = input_embedding + position_embedding
+        
+        input_embedding = self.embedding_dropout(input_embedding)
+        input_embedding = self.embedding_layer_norm(input_embedding)
 
         share_feature = self.embedding_encoder(
-            input_embedding=input_embedding,
-            position_embedding=position_embedding,
+            inputs=input_embedding,
             mask=mask,
         )
 
@@ -248,16 +254,20 @@ class SubjectPredicateModel(nn.Module):
         return share_feature, sp_start, sp_end
 
 class ObjectModel(nn.Module):
-    def __init__(self, embedding_size: int, num_heads: int, rnn_type: str, rnn_hidden_size: int, forward_dim: int=128, device: str='cuda'):
+    def __init__(self, embedding_size: int, num_heads: int, forward_dim: int=128, device: str='cuda'):
         '''
         '''
         super(ObjectModel, self).__init__()
+        dropout_prob = 0.1
 
-        self.embedding_encoder = RNNEncoder(
+        self.embedding_dropout = nn.Dropout(dropout_prob)
+        self.embedding_layer_norm = nn.LayerNorm((embedding_size))
+
+        self.embedding_encoder = SelfAttentionEncoder(
             embedding_dim=embedding_size,
-            num_layers=2,
-            rnn_type=rnn_type,
-            hidden_size=rnn_hidden_size,
+            num_heads=num_heads,
+            num_layers=4,
+            dropout_prob=dropout_prob,
         )
 
         self.multi_head_attention = MultiHeadAttention(
@@ -291,16 +301,21 @@ class ObjectModel(nn.Module):
         '''
         '''
 
-        rnn_out = self.embedding_encoder(
-            input_embedding=query_embedding,
-            position_embedding=query_pos_embedding,
+        if query_pos_embedding is not None:
+            query_embedding = query_embedding + query_pos_embedding
+        
+        query_embedding = self.embedding_dropout(query_embedding)
+        query_embedding = self.embedding_layer_norm(query_embedding)
+
+        att_out = self.embedding_encoder(
+            inputs=query_embedding,
             mask=query_mask,
         )
 
         outs, _ = self.multi_head_attention(
             query=share_feature,
-            key=rnn_out,
-            value=rnn_out,
+            key=att_out,
+            value=att_out,
             mask=query_mask,
         )
 
@@ -371,13 +386,14 @@ class Trainer(object):
             raise ValueError(('隐藏层的维度({})不是注意力头个数({})的整数倍'.format(config.embedding_size, config.num_heads)))
 
         position_embedding = PositionEmbedding(config.embedding_size).to(device)
+        
+        # 可学习的位置embedding
+        # position_embedding = DynamicPositionEmbedding(config.embedding_size).to(device)
 
         sp_model = SubjectPredicateModel(
             embedding_size=config.embedding_size,
             num_predicate=self.num_predicate,
             num_heads=config.num_heads,
-            rnn_type=config.rnn_type,
-            rnn_hidden_size=config.rnn_hidden_size,
             forward_dim=config.forward_dim,
             device=device
         ).to(device)
@@ -385,8 +401,6 @@ class Trainer(object):
         o_model = ObjectModel(
             embedding_size=config.embedding_size,
             num_heads=config.num_heads,
-            rnn_type=config.rnn_type,
-            rnn_hidden_size=config.rnn_hidden_size,
             forward_dim=config.forward_dim,
             device=device,
         ).to(device)
@@ -447,7 +461,7 @@ class Trainer(object):
         loss_cpu = 0.0
 
         # 保存模型的名字
-        model_name = '{}_wv{}_{}{}'.format(config.from_pertrained, config.embedding_size, config.rnn_type, config.rnn_hidden_size)
+        model_name = '{}_wv{}'.format(config.from_pertrained, config.embedding_size)
 
         for epoch in range(config.epoch):
             sp_model.train()
@@ -581,9 +595,10 @@ class Trainer(object):
                 sp_ema.save_best_params()
                 o_ema.save_best_params()
                 if config.from_pertrained not in ['bert', 'albert']:
-                    torch.save(embedding.state_dict(), '{}/{}_sp_o_embedding.pkl'.format(base_path, model_name))
-                torch.save(sp_model.state_dict(), '{}/{}_sp_model.pkl'.format(base_path, model_name))
-                torch.save(o_model.state_dict(), '{}/{}_o_model.pkl'.format(base_path, model_name))
+                    torch.save(embedding.state_dict(), '{}/{}_sp_o_embedding_2023.pkl'.format(base_path, model_name))
+                torch.save(sp_model.state_dict(), '{}/{}_sp_model_2023.pkl'.format(base_path, model_name))
+                torch.save(o_model.state_dict(), '{}/{}_o_model_2023.pkl'.format(base_path, model_name))
+                torch.save(position_embedding.state_dict(), '{}/{}_pos_embedding_2023.pkl'.format(base_path, model_name))
             else:
                 f1_not_up_count += 1
                 if f1_not_up_count >= patience:
@@ -830,19 +845,17 @@ def load_model_and_test(config: Config, device):
     dev_data = read_json(TEST_FILE)
 
     embedding = TorchEmbedding(config.embedding_size, device).to(device)
-    position_embedding = PositionEmbedding(config.embedding_size).to(device)
 
     id2predicate, predicate2id = read_json(ID_PREDICATE_FILE)
     num_predicate = len(id2predicate)
     predicate_info = read_json(PREDICATE_INFO_FILE)
 
 
+
     sp_model = SubjectPredicateModel(
         embedding_size=config.embedding_size,
         num_predicate=num_predicate,
         num_heads=config.num_heads,
-        rnn_type=config.rnn_type,
-        rnn_hidden_size=config.rnn_hidden_size,
         forward_dim=config.forward_dim,
         device=device
     ).to(device)
@@ -850,20 +863,23 @@ def load_model_and_test(config: Config, device):
     o_model = ObjectModel(
         embedding_size=config.embedding_size,
         num_heads=config.num_heads,
-        rnn_type=config.rnn_type,
-        rnn_hidden_size=config.rnn_hidden_size,
         forward_dim=config.forward_dim,
         device=device,
     ).to(device)
 
-    model_name = '{}_wv{}_{}{}'.format(config.from_pertrained, config.embedding_size, config.rnn_type, config.rnn_hidden_size)
+    model_name = '{}_wv{}'.format(config.from_pertrained, config.embedding_size)
 
-    embedding.load_state_dict(torch.load('{}/{}_sp_o_embedding.pkl'.format(base_path, model_name), map_location='cuda:0'))
-    sp_model.load_state_dict(torch.load('{}/{}_sp_model.pkl'.format(base_path, model_name), map_location='cuda:0'))
-    o_model.load_state_dict(torch.load('{}/{}_o_model.pkl'.format(base_path, model_name), map_location='cuda:0'))
+    # position_embedding = DynamicPositionEmbedding(config.embedding_size)
+    position_embedding = PositionEmbedding(config.embedding_size).to(device)
+
+    embedding.load_state_dict(torch.load('{}/{}_sp_o_embedding_2023.pkl'.format(base_path, model_name), map_location='cuda:0'))
+    sp_model.load_state_dict(torch.load('{}/{}_sp_model_2023.pkl'.format(base_path, model_name), map_location='cuda:0'))
+    o_model.load_state_dict(torch.load('{}/{}_o_model_2023.pkl'.format(base_path, model_name), map_location='cuda:0'))
+    # position_embedding.load_state_dict(torch.load('{}/{}_pos_embedding_2023.pkl'.format(base_path, model_name), map_location='cuda:0'))
 
     sp_model.eval()
     o_model.eval()
+    position_embedding.eval()
 
     with torch.no_grad():
         f1, precision, recall, (spo_list_pred, spo_list_true) = evaluate(

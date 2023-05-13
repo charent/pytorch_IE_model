@@ -39,6 +39,14 @@ class PytorchIE(object):
 
         trainer = Trainer()
         trainer.train(self.config, self.device)
+    
+    def train_sp_o_2023(self):
+        from model.sp_o_model_2023 import Trainer
+
+        print('train sp_o model_2023')
+
+        trainer = Trainer()
+        trainer.train(self.config, self.device)
 
     def test_sp_o(self):
         from model.sp_o_model import load_model_and_test

@@ -1,4 +1,5 @@
 .vscode
+.idea
 /model_file
 __pycache__
 */__pycache__
