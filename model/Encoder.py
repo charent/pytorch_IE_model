@@ -9,6 +9,10 @@ sys.path.append('..')
 from model.attention import SelfAttention, MultiHeadAttention
 
 class SelfAttentionEncoder(nn.Module):
+    '''
+    自注意力机制编码器，结果类似于transformer，可以叠加多层注意力层
+    输入、输出的shape相同
+    '''
     def __init__(self, embedding_dim: int, num_heads: int, num_layers: int, dropout_prob: float=0.0, device: str='cuda'):
         super(SelfAttentionEncoder, self).__init__()
 

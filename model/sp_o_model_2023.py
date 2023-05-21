@@ -61,6 +61,7 @@ class TextData(object):
 
     def __process_data_for_dataloader(self, raw_data: list):
         '''
+        训练时，SP子模型会抽取出多个SP，这里随机抽取一个SP，训练O子模型
         '''
         text = []
         spo_list = []
@@ -77,6 +78,9 @@ class TextData(object):
         return (text, spo_list, choice_index)
         
     def __compute_max_len(self, raw_data: list):
+        '''
+        计算数据集的最大长度
+        '''
 
         max_seq_len = 0
         subject_max_len = 0
@@ -112,6 +116,9 @@ class SpoDataset(Dataset):
         self.len = len(text)
 
     def __getitem__(self, index):
+        '''
+        返回一条训练数据
+        '''
         
         text = self.text[index]
         spo_list = self.spo_list[index]

@@ -10,12 +10,16 @@ sys.path.append('..')
 from embedding.bert_embedding import BertTokenizerCN
 
 parent_path = abspath(dirname(dirname(__file__)))
+
+# Albert模型文件路径，请根据情况修改 
 ALBERT_BERT_DIR = parent_path + '/model_file/albert_base_zh'
+
 VOCAB = ALBERT_BERT_DIR + '/vocab.txt'
 
 class AlbertEmbedding(nn.Module):
     """
-    加载训练好的模型使用
+    加载训练好的模型使用,Albert模型
+    模型下载：https://huggingface.co/uer/albert-base-chinese-cluecorpussmall
     """
     def __init__(self, vocab_file: str=VOCAB, torch_bert_path: str=ALBERT_BERT_DIR, device: str='cpu'):
         super(AlbertEmbedding, self).__init__()
@@ -33,6 +37,7 @@ class AlbertEmbedding(nn.Module):
 
     def text_to_embedding(self, text: Union[list, str], max_len: int=None,  requires_grad: bool=False):
         '''
+        输入文字List，返回对应的词向量
         return: 
             input_embedding, cls_embedding, length, attention_mask
         '''

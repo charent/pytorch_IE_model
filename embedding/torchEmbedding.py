@@ -14,7 +14,7 @@ CHAR2ID_FILE = parent_path + 'char2id.json'
 TORCH_BERT_DIR = parent_path + '/model_file/bert'
 BERT_VOCAB = TORCH_BERT_DIR + '/vocab.txt'
 
-# 位置编码
+# 位置编码（静态编码，不可训练）
 class PositionEmbedding(nn.Module):
     def __init__(self, embedding_size: int, max_seq_len: int=512):
         '''
@@ -76,7 +76,7 @@ class PositionEmbedding(nn.Module):
         
         return outputs
 
-# 位置编码
+# 位置编码（动态编码，可训练）
 class DynamicPositionEmbedding(nn.Module):
     def __init__(self, embedding_size: int, max_seq_len: int=512, device: str='cuda'):
         '''

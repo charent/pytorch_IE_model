@@ -57,6 +57,12 @@ def Ndim_tensor_repeat_n(reapet_tensor: Tensor, lengths: Tensor, max_seq_len: in
 def create_mask_from_lengths(lengths: Tensor, max_len: int=None):
     '''
     通过lengths数组创建mask
+    输入：[1,2,3],max_len = 5
+    输出：[
+        [1,0,0,0,0],
+        [1,1,0,0,0],
+        [1,1,1,0,0]
+    ]
     '''
     if max_len is None:
         max_len = torch.max(lengths)

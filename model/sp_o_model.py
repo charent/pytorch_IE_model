@@ -765,6 +765,7 @@ def compute_batch_spo(models: tuple, embeddings: tuple, text: list, predicate_in
 
 def compute_batch_sp(sp_model: SubjectPredicateModel, embeddings: tuple, text: list, config: Config):
     '''
+    批量提取主实体S和关系P
     '''
     embedding, position_embedding = embeddings
     sigmoid = torch.sigmoid

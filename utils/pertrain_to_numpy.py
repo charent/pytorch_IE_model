@@ -8,7 +8,9 @@ import os
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class PertrainEmbedding2numpy(object):
-
+    '''
+    为低内存设计，从预训练模型中抽取出在数据集中出现的字向量，不出现的字向量不做处理。
+    '''
     def __init__(self, chars_file: str, pertrain_embedding_path: str):
         
         self.chars = []

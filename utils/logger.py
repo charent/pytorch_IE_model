@@ -5,6 +5,7 @@ import colorlog
 
 parent_path = abspath(dirname(dirname(__file__)))
 
+# 自定义日志格式
 class Logger(object):
     def __init__(self,logger_name: str, level=logging.DEBUG, std_out: bool=True, save2file: bool=False):
         super().__init__()

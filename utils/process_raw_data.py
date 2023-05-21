@@ -14,8 +14,6 @@ from utils.function import repair_song_album
 
 log = Logger('prepare_data').get_logger()
 
-test = False
-
 parent_path = abspath(dirname(dirname(__file__))) + '/data/'
 TRAIN_FILE = parent_path + 'train_data.json'
 DEV_FILE = parent_path + 'dev_data.json'
@@ -23,6 +21,8 @@ DEV_FILE = parent_path + 'dev_data.json'
 np.random.seed(23333)
 DEV_SIZE = 2000
 
+# 加载少量的数据集，用于测试代码是否能正常运行
+test = False
 if test:
     TRAIN_FILE = parent_path + 'train_data_sample.json'
     DEV_FILE = parent_path + 'dev_data_sample.json'

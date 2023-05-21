@@ -26,9 +26,10 @@ python ./utils/pertrain_to_numpy.py
 
 ## Download dataset： 
 - <https://aistudio.baidu.com/aistudio/datasetdetail/11384>
-- the downloaded file of dev_data.json should be moving on "data" folder.
+- the downloaded file of train_data.json and dev_data.json should be moving on "data" folder.
 ```bash
 --/data
+----train_data.json
 ----dev_data.json
 ```
   

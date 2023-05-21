@@ -9,12 +9,15 @@ import codecs
 from typing import Union
 
 parent_path = abspath(dirname(dirname(__file__)))
+
+# Bert模型文件路径，请根据实际情况修改
 TORCH_BERT_DIR = parent_path + '/model_file/bert'
+
 VOCAB = TORCH_BERT_DIR + '/vocab.txt'
 
 class Bert_embedding(nn.Module):
     """
-    加载训练好的模型使用
+    加载训练好的bert模型使用
     """
     def __init__(self, device: str='cpu'):
         super().__init__()

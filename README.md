@@ -26,9 +26,10 @@ python ./utils/pertrain_to_numpy.py
 
 ## 数据集下载： 
 - <https://aistudio.baidu.com/aistudio/datasetdetail/11384>
-- 下载的数据集dev_data.json放到data文件夹下
+- 下载的数据集train_data.json、dev_data.json放到data文件夹下
 ```bash
 --/data
+----train_data.json
 ----dev_data.json
 ```
   
