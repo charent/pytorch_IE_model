@@ -47,6 +47,14 @@ class PytorchIE(object):
 
         trainer = Trainer()
         trainer.train(self.config, self.device)
+    
+    def test_sp_o_2023(self):
+        from model.sp_o_model_2023 import load_model_and_test
+
+        print('teset sp_o model_2023')
+
+        torch.backends.cudnn.benchmark = False
+        load_model_and_test(self.config, self.device)
 
     def test_sp_o(self):
         from model.sp_o_model import load_model_and_test

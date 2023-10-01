@@ -581,9 +581,9 @@ class Trainer(object):
                 sp_ema.save_best_params()
                 o_ema.save_best_params()
                 if config.from_pertrained not in ['bert', 'albert']:
-                    torch.save(embedding.state_dict(), '{}/{}_sp_o_embedding.pkl'.format(base_path, model_name))
-                torch.save(sp_model.state_dict(), '{}/{}_sp_model.pkl'.format(base_path, model_name))
-                torch.save(o_model.state_dict(), '{}/{}_o_model.pkl'.format(base_path, model_name))
+                    torch.save(embedding.state_dict(), '{}/{}_sp_o_embedding.pth'.format(base_path, model_name))
+                torch.save(sp_model.state_dict(), '{}/{}_sp_model.pth'.format(base_path, model_name))
+                torch.save(o_model.state_dict(), '{}/{}_o_model.pth'.format(base_path, model_name))
             else:
                 f1_not_up_count += 1
                 if f1_not_up_count >= patience:
@@ -859,9 +859,9 @@ def load_model_and_test(config: Config, device):
 
     model_name = '{}_wv{}_{}{}'.format(config.from_pertrained, config.embedding_size, config.rnn_type, config.rnn_hidden_size)
 
-    embedding.load_state_dict(torch.load('{}/{}_sp_o_embedding.pkl'.format(base_path, model_name), map_location='cuda:0'))
-    sp_model.load_state_dict(torch.load('{}/{}_sp_model.pkl'.format(base_path, model_name), map_location='cuda:0'))
-    o_model.load_state_dict(torch.load('{}/{}_o_model.pkl'.format(base_path, model_name), map_location='cuda:0'))
+    embedding.load_state_dict(torch.load('{}/{}_sp_o_embedding.pth'.format(base_path, model_name), map_location='cuda:0'))
+    sp_model.load_state_dict(torch.load('{}/{}_sp_model.pth'.format(base_path, model_name), map_location='cuda:0'))
+    o_model.load_state_dict(torch.load('{}/{}_o_model.pth'.format(base_path, model_name), map_location='cuda:0'))
 
     sp_model.eval()
     o_model.eval()
