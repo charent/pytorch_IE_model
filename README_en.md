@@ -50,7 +50,7 @@ python main.py train_sp_o
     
 ```
 
-# Site
+# Cite
 If you feel this project is helpful to you, please cite the following paper:
 ```conf
 https://kns.cnki.net/kcms2/article/abstract?v=7P_nOixU6lV4c5lbZIlAA0L1xyOeieRVh40VHRxIaT47vFCr5BStyodVzKStzcqTifi863z2Nx9bIsaXKF9OlV_GYlkPV8zEsSoCoUhFVa2gmjrqNDhdzQrcaPKHn8lQA2FkYQuO0co=&uniplatform=NZKPT&flag=copy
