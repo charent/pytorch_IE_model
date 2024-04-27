@@ -1,4 +1,4 @@
-transformers==4.36.0
+transformers==4.38.0
 # pytorch_transformers==1.2.0
 numpy==1.22.0
 colorlog==4.6.2
